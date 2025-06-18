@@ -23,10 +23,24 @@ export const getCharactersByCast = query({
 
 // Get all assets
 export const getAssets = query({
-  args: {},
-  handler: async (ctx) => {
-    return await ctx.db.query("assets").collect();
+  args: {
+    type: v.optional(v.union(v.literal("character-asset"), v.literal("background-asset"), v.literal("sound-effect"))),
   },
+  handler: async (ctx, args) => {
+    let query = ctx.db.query("assets");
+    if (args.type) {
+      query = query.filter(q => q.eq(q.field("type"), args.type));
+    }
+    const assets = await query.collect();
+
+    const assetsWithUrls = await Promise.all(
+      assets.map(async (asset) => {
+        const url = await ctx.storage.getUrl(asset.storageId);
+        return { ...asset, url };
+      })
+    );
+    return assetsWithUrls;
+  }
 });
 
 // Get projects for the current user
@@ -35,7 +49,7 @@ export const getMyProjects = query({
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return [];
-    
+
     return await ctx.db
       .query("projects")
       .withIndex("by_userId", (q) => q.eq("userId", userId))
@@ -125,11 +139,11 @@ export const deleteCast = mutation({
       .query("characters")
       .filter((q) => q.eq(q.field("castId"), args.castId))
       .collect();
-    
+
     for (const character of characters) {
       await ctx.db.delete(character._id);
     }
-    
+
     // Delete the cast
     await ctx.db.delete(args.castId);
   },
@@ -149,12 +163,12 @@ export const deleteProject = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
-    
+
     const project = await ctx.db.get(args.projectId);
     if (!project || project.userId !== userId) {
       throw new Error("Not authorized");
     }
-    
+
     await ctx.db.delete(args.projectId);
   },
 });

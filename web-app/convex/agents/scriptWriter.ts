@@ -6,11 +6,17 @@ import { z } from "zod";
 import { openai } from "@ai-sdk/openai";
 import { Doc, Id } from "../_generated/dataModel";
 
-const DialogueSchema = z.object({
-    dialogue: z.array(z.object({
-        character: z.string().describe("The name of the character speaking."),
-        line: z.string().describe("The character's dialogue for this part of the scene."),
-    })).describe("The full dialogue for the scene."),
+const SceneSchema = z.object({
+    scenes: z.array(z.object({
+        sceneNumber: z.number().describe("The order of the scene in the video."),
+        type: z.enum(["dialogue", "content", "fx"]).describe("The type of scene."),
+        character: z.string().optional().describe("For 'dialogue' scenes, the name of the character speaking."),
+        line: z.string().optional().describe("For 'dialogue' scenes, the character's line."),
+        title: z.string().optional().describe("For 'content' scenes, the title of the concept being displayed."),
+        text: z.string().optional().describe("For 'content' scenes, the text to display on screen."),
+        sound: z.string().optional().describe("For 'fx' scenes, a description of the sound effect (e.g., 'whoosh')."),
+        visual: z.string().optional().describe("For 'fx' scenes, a description of the visual effect (e.g., 'zoom-in').")
+    })).describe("The full sequence of scenes for the video."),
 });
 
 const CritiqueSchema = z.object({
@@ -20,19 +26,32 @@ const CritiqueSchema = z.object({
 
 // --- Agent Definitions ---
 
-const writer = new Agent(components.agent, {
+const director = new Agent(components.agent, {
     chat: openai.chat("gpt-4-turbo"),
-    instructions: "You are a scriptwriter for educational videos. Write a dialogue between the provided characters to explain the lesson plan. The 'teacher' character should explain concepts, and the 'student' characters should ask clarifying questions. Make it engaging and easy to understand.",
+    instructions: `You are a director and scriptwriter for short, engaging educational videos.
+Your goal is to create a "director's script" by turning a lesson plan into a sequence of scenes.
+
+A scene can be one of three types:
+1.  'dialogue': A character speaking. This should be used for the 'teacher' character to explain concepts or for the 'student' to ask questions.
+2.  'content': A visual presentation of a key concept from the lesson plan, with a title and text. This is for displaying information directly to the viewer.
+3.  'fx': A sound or visual effect to make the video more engaging (e.g., a "whoosh" sound).
+
+You must structure your output according to the provided schema. For each scene, provide the scene number and type, and then fill in the relevant fields for that type.
+- For 'dialogue', specify the 'character' and 'line'.
+- For 'content', specify the 'title' and 'text'.
+- For 'fx', you can specify a 'sound' or 'visual' effect.
+
+Create a varied and well-paced script that balances dialogue with direct content presentation.`,
 });
 
 const critic = new Agent(components.agent, {
     chat: openai.chat("gpt-4o-mini"),
-    instructions: "You are a script critic. Review the following dialogue and character personas. Provide constructive feedback on whether the dialogue is engaging, clear, and true to the characters' voices. Be specific in your suggestions for improvement.",
+    instructions: "You are a script critic. Review the following script. Is it engaging? Is the pacing good? Is it true to the characters' personas? Does it effectively teach the lesson plan? Provide constructive feedback and specific suggestions for improvement.",
 });
 
 const reviser = new Agent(components.agent, {
     chat: openai.chat("gpt-4-turbo"),
-    instructions: "You are a script reviser. Your task is to rewrite the original script based on the provided critique. Integrate the feedback and suggestions to create a superior, polished final script.",
+    instructions: "You are a script reviser. Your task is to rewrite the original script based on the provided critique. Integrate the feedback and suggestions to create a superior, polished final script that follows the director's script format.",
 });
 
 
@@ -48,19 +67,31 @@ export const write = internalAction({
             throw new Error("Project details not found for writing script.");
         }
 
+        const cast = await ctx.runQuery(internal.assets.getCast, { castId: project.castId });
+        if (!cast) {
+            throw new Error("Cast not found.");
+        }
         const characters = await ctx.runQuery(internal.assets.getCharactersForCast, { castId: project.castId });
         if (!characters || characters.length === 0) {
             throw new Error("Characters not found for cast.");
         }
 
+        const characterMap = new Map<string, Doc<"characters">>(characters.map(c => [c.name, c]));
+
         const lessonPlan = project.plan;
-        const characterPersonas = JSON.stringify(characters.map(c => ({ name: c.name, persona: c.description })));
+        const characterPersonas = JSON.stringify(
+            characters.map(c => ({
+                name: c.name,
+                persona: c.description,
+            }))
+        );
+        const castDynamics = `The cast is ${cast.name}. Their dynamic is: ${cast.dynamics}`;
 
         // --- Step 1: Draft Script ---
-        const { thread: writerThread } = await writer.createThread(ctx, { userId: project.userId });
-        let { object: script } = await writerThread.generateObject({
-            prompt: `Characters:\n${characterPersonas}\n\nLesson Plan:\n${lessonPlan}\n\nPlease write the script.`,
-            schema: DialogueSchema,
+        const { thread: directorThread } = await director.createThread(ctx, { userId: project.userId });
+        let { object: script } = await directorThread.generateObject({
+            prompt: `Cast Info:\n${castDynamics}\n\nCharacters:\n${characterPersonas}\n\nLesson Plan:\n${lessonPlan}\n\nPlease write the director's script.`,
+            schema: SceneSchema,
         });
         console.log("--- Script Draft 1 ---");
 
@@ -69,34 +100,31 @@ export const write = internalAction({
             console.log(`--- Review Loop ${i + 1} ---`);
             const { thread: criticThread } = await critic.createThread(ctx, { userId: project.userId });
             const { object: critique } = await criticThread.generateObject({
-                prompt: `Character Personas:\n${characterPersonas}\n\nScript to review:\n${JSON.stringify(script)}`,
+                prompt: `Cast Info:\n${castDynamics}\n\nCharacter Personas:\n${characterPersonas}\n\nScript to review:\n${JSON.stringify(script)}`,
                 schema: CritiqueSchema,
             });
             console.log("Critique:", critique);
 
             const { thread: reviserThread } = await reviser.createThread(ctx, { userId: project.userId });
             const { object: revisedScript } = await reviserThread.generateObject({
-                prompt: `Original Script:\n${JSON.stringify(script)}\n\nCritique:\n${JSON.stringify(critique)}\n\nPlease provide a revised script.`,
-                schema: DialogueSchema,
+                prompt: `Cast Info:\n${castDynamics}\n\nOriginal Script:\n${JSON.stringify(script)}\n\nCritique:\n${JSON.stringify(critique)}\n\nPlease provide a revised script.`,
+                schema: SceneSchema,
             });
             script = revisedScript;
             console.log(`--- Revised Script ${i + 1} ---`);
         }
 
-        const gatheredContent = JSON.parse(project.plan); // This now contains lessonPlan, not raw text.
-        const lessonData = JSON.parse(gatheredContent.lessonPlan); // We need to re-parse
-        const imageQueries = lessonData.map((l: any) => l.concept);
-
-        const finalDialogue = script.dialogue.map((line, i) => ({
-            ...line,
-            sceneNumber: i + 1,
-            // Simple logic to assign an image query to each line of dialogue for now
-            imageQuery: imageQueries[i % imageQueries.length]
-        }));
+        const finalScenes = script.scenes.map((scene, i) => {
+            if (scene.type === 'dialogue' && scene.character) {
+                const characterDoc = characterMap.get(scene.character);
+                return { ...scene, characterId: characterDoc?._id };
+            }
+            return scene;
+        });
 
         await ctx.runMutation(internal.scripts.create, {
             projectId: args.projectId,
-            dialogue: finalDialogue,
+            scenes: finalScenes,
         });
 
         await ctx.runMutation(internal.projects.updateProjectStatus, {

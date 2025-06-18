@@ -8,8 +8,8 @@
  * @module
  */
 
-import type * as agents_contentPlanner from "../agents/contentPlanner.js";
-import type * as agents_researcher from "../agents/researcher.js";
+import type * as agents_gatherContent from "../agents/gatherContent.js";
+import type * as agents_lessonPlanner from "../agents/lessonPlanner.js";
 import type * as agents_scriptWriter from "../agents/scriptWriter.js";
 import type * as agents_tools from "../agents/tools.js";
 import type * as agents_videoRenderer from "../agents/videoRenderer.js";
@@ -19,7 +19,9 @@ import type * as auth from "../auth.js";
 import type * as http from "../http.js";
 import type * as media from "../media.js";
 import type * as projects from "../projects.js";
+import type * as queries from "../queries.js";
 import type * as scripts from "../scripts.js";
+import type * as seed from "../seed.js";
 import type * as videos from "../videos.js";
 import type * as workflow from "../workflow.js";
 
@@ -38,8 +40,8 @@ import type {
  * ```
  */
 declare const fullApi: ApiFromModules<{
-  "agents/contentPlanner": typeof agents_contentPlanner;
-  "agents/researcher": typeof agents_researcher;
+  "agents/gatherContent": typeof agents_gatherContent;
+  "agents/lessonPlanner": typeof agents_lessonPlanner;
   "agents/scriptWriter": typeof agents_scriptWriter;
   "agents/tools": typeof agents_tools;
   "agents/videoRenderer": typeof agents_videoRenderer;
@@ -49,7 +51,9 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   media: typeof media;
   projects: typeof projects;
+  queries: typeof queries;
   scripts: typeof scripts;
+  seed: typeof seed;
   videos: typeof videos;
   workflow: typeof workflow;
 }>;

@@ -2,19 +2,25 @@ import { internalAction } from "../_generated/server";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 
-// Placeholder for a Remotion rendering call
-async function renderVideoOnRemotion(projectData: any): Promise<string> {
-    console.log(`Starting Remotion render for project: ${projectData._id}`);
-    // In a real implementation, this would:
-    // 1. Prepare the props for your Remotion composition.
-    // 2. Call the Remotion rendering service (e.g., Remotion Lambda, or your own server).
-    //    This could be an HTTP request to a dedicated endpoint.
-    // 3. The service would render the video and upload it to a storage bucket.
-    // 4. The service would return the URL or storage ID of the rendered video.
+// This function would make a call to a service like Remotion Lambda
+// to render the video. It passes all the necessary data, including the
+// script, assets, and audio.
+async function renderVideoOnRemotion(renderData: any): Promise<string> {
+    console.log(`Starting Remotion render for project: ${renderData.project._id}`);
+    console.log("Render data:", JSON.stringify(renderData, null, 2));
 
-    // For now, we'll simulate this process and return a placeholder storage ID.
+    // In a real implementation, this would be an HTTP call:
+    // const response = await fetch(process.env.REMOTION_RENDER_URL, {
+    //   method: "POST",
+    //   headers: { "Content-Type": "application/json" },
+    //   body: JSON.stringify(renderData),
+    // });
+    // const { videoUrl } = await response.json();
+    // For now, we simulate the render process.
+
     await new Promise(resolve => setTimeout(resolve, 5000)); // Simulate render time
     console.log("Remotion render finished.");
+    // This would be the storage ID or URL of the final rendered video.
     return "placeholder_video_storage_id";
 }
 
@@ -27,17 +33,35 @@ export const render = internalAction({
         if (!project || !project.scriptId) {
             throw new Error("Project or script not found");
         }
-        // In a real app, you'd gather all necessary data: script, images, audio
+
         const script = await ctx.runQuery(internal.scripts.get, { scriptId: project.scriptId });
-        // const media = await ctx.runQuery(internal.media.getAll, { projectId: args.projectId });
+        if (!script || !script.scenes) {
+            throw new Error("Script or scenes not found");
+        }
+
+        // @ts-expect-error - getBackgroundAssets is a new query and types may not be updated yet
+        const backgroundAssets = await ctx.runQuery(internal.assets.getBackgroundAssets, {});
+        if (backgroundAssets.length === 0) {
+            throw new Error("No background assets found. Please upload at least one.");
+        }
+        // Select a random background video for this render
+        const randomBackground = backgroundAssets[Math.floor(Math.random() * backgroundAssets.length)];
 
         await ctx.runMutation(internal.projects.updateProjectStatus, {
             projectId: args.projectId,
             status: "rendering",
         });
 
-        // We'll just pass the project and script for now
-        const videoStorageId = await renderVideoOnRemotion({ project, script });
+        // This object is the "props" that will be passed to your Remotion composition
+        const renderData = {
+            project,
+            script,
+            backgroundUrl: randomBackground.url,
+            // In a real app, you'd also pass character asset URLs, audio file URLs, etc.
+            // This data would be gathered based on the contents of the script.
+        };
+
+        const videoStorageId = await renderVideoOnRemotion(renderData);
 
         const videoId = await ctx.runMutation(internal.videos.create, {
             projectId: args.projectId,

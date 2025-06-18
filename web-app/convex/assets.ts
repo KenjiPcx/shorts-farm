@@ -1,4 +1,4 @@
-import { mutation, internalQuery } from "./_generated/server";
+import { mutation, internalQuery, query } from "./_generated/server";
 import { v } from "convex/values";
 import { Doc, Id } from "./_generated/dataModel";
 
@@ -12,43 +12,45 @@ export const createAsset = mutation({
     args: {
         storageId: v.string(),
         name: v.string(),
-        type: v.union(v.literal("character-asset"), v.literal("background-asset"), v.literal("sound-effect")),
         description: v.string(),
+        type: v.union(v.literal("character-asset"), v.literal("background-asset"), v.literal("sound-effect")),
+        characterId: v.optional(v.id("characters")),
+        castId: v.optional(v.id("casts")),
     },
     handler: async (ctx, args) => {
         await ctx.db.insert("assets", {
-            storageId: args.storageId,
-            name: args.name,
-            description: args.description,
-            type: args.type,
+            ...args
         });
     },
 });
 
-// Creates a new cast of characters.
+// Creates a new cast.
 export const createCast = mutation({
     args: {
         name: v.string(),
-        characters: v.array(
-            v.object({
-                name: v.string(),
-                description: v.string(),
-                assets: v.optional(v.array(v.id("assets"))),
-            })
-        ),
+        dynamics: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
-        const castId = await ctx.db.insert("casts", {
+        return await ctx.db.insert("casts", {
             name: args.name,
+            dynamics: args.dynamics,
         });
-
-        for (const character of args.characters) {
-            await ctx.db.insert("characters", {
-                ...character,
-                castId: castId,
-            });
-        }
     },
+});
+
+// Creates a new character and assigns them to a cast.
+export const createCharacter = mutation({
+    args: {
+        name: v.string(),
+        description: v.string(),
+        castId: v.id("casts"),
+        voiceId: v.optional(v.string()),
+    },
+    handler: async (ctx, args) => {
+        return await ctx.db.insert("characters", {
+            ...args
+        });
+    }
 });
 
 export const getCast = internalQuery({
@@ -58,12 +60,75 @@ export const getCast = internalQuery({
     },
 });
 
+// Gets all characters for a cast, along with their associated assets.
 export const getCharactersForCast = internalQuery({
     args: { castId: v.id("casts") },
     handler: async (ctx, args) => {
-        return await ctx.db
+        // 1. Get all characters for the cast
+        const characters = await ctx.db
             .query("characters")
             .withIndex("by_castId", (q) => q.eq("castId", args.castId))
             .collect();
+
+        // 2. Get all character assets for the cast
+        const castAssets = await ctx.db
+            .query("assets")
+            .withIndex("by_castId", (q) => q.eq("castId", args.castId))
+            .filter(q => q.eq(q.field("type"), "character-asset"))
+            .collect();
+
+        // 3. Map assets to their characters
+        const charactersWithAssets = characters.map((character) => {
+            const assets = castAssets
+                .filter((asset) => asset.characterId === character._id)
+                .map(asset => ({ name: asset.name, description: asset.description }));
+            return { ...character, assets };
+        });
+
+        return charactersWithAssets;
+    },
+});
+
+export const getBackgroundAssets = query({
+    args: {},
+    handler: async (ctx) => {
+        const assets = await ctx.db
+            .query("assets")
+            .filter(q => q.eq(q.field("type"), "background-asset"))
+            .collect();
+
+        const assetsWithUrls = await Promise.all(
+            assets.map(async (asset) => {
+                const url = await ctx.storage.getUrl(asset.storageId);
+                if (!url) {
+                    return null;
+                }
+                return { ...asset, url };
+            })
+        );
+        return assetsWithUrls.filter(a => a !== null);
+    },
+});
+
+export const getAssets = query({
+    args: {
+        type: v.optional(v.union(v.literal("character-asset"), v.literal("background-asset"), v.literal("sound-effect"))),
+    },
+    handler: async (ctx, args) => {
+        const assets = await ctx.db
+            .query("assets")
+            .filter(q => q.eq(q.field("type"), args.type))
+            .collect();
+
+        const assetsWithUrls = await Promise.all(
+            assets.map(async (asset) => {
+                const url = await ctx.storage.getUrl(asset.storageId);
+                if (!url) {
+                    return null;
+                }
+                return { ...asset, url };
+            })
+        );
+        return assetsWithUrls.filter(a => a !== null);
     },
 }); 

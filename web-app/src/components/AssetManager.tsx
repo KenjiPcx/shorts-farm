@@ -4,14 +4,15 @@ import { api } from "../../convex/_generated/api";
 
 export function AssetManager() {
   const [isUploading, setIsUploading] = useState(false);
-  const [selectedType, setSelectedType] = useState<"character-asset" | "background-asset" | "sound-effect">("character-asset");
+  const [uploadAssetType, setUploadAssetType] = useState<"character-asset" | "background-asset" | "sound-effect">("character-asset");
+  const [filterAssetType, setFilterAssetType] = useState<"character-asset" | "background-asset" | "sound-effect" | "all">("all");
   const [newAsset, setNewAsset] = useState({
     name: "",
     description: "",
     file: null as File | null,
   });
 
-  const assets = useQuery(api.queries.getAssets);
+  const assets = useQuery(api.queries.getAssets, { type: filterAssetType === "all" ? undefined : filterAssetType });
   const generateUploadUrl = useMutation(api.assets.generateUploadUrl);
   const createAsset = useMutation(api.assets.createAsset);
 
@@ -30,27 +31,27 @@ export function AssetManager() {
     try {
       // Generate upload URL
       const uploadUrl = await generateUploadUrl();
-      
+
       // Upload file
       const response = await fetch(uploadUrl, {
         method: "POST",
         body: newAsset.file,
       });
-      
+
       if (!response.ok) {
         throw new Error("Failed to upload file");
       }
-      
+
       const { storageId } = await response.json();
-      
+
       // Create asset record
       await createAsset({
         storageId,
         name: newAsset.name.trim(),
         description: newAsset.description.trim(),
-        type: selectedType,
+        type: uploadAssetType,
       });
-      
+
       // Reset form
       setNewAsset({ name: "", description: "", file: null });
       setIsUploading(false);
@@ -108,6 +109,20 @@ export function AssetManager() {
             Upload and manage character assets, backgrounds, and sound effects
           </p>
         </div>
+        <div>
+          <label htmlFor="filterAssetType" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Filter by type</label>
+          <select
+            id="filterAssetType"
+            value={filterAssetType}
+            onChange={(e) => setFilterAssetType(e.target.value as any)}
+            className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md dark:bg-gray-700 dark:text-white"
+          >
+            <option value="all">All Assets</option>
+            <option value="character-asset">Character Assets</option>
+            <option value="background-asset">Background Assets</option>
+            <option value="sound-effect">Sound Effects</option>
+          </select>
+        </div>
       </div>
 
       {/* Upload Form */}
@@ -134,8 +149,8 @@ export function AssetManager() {
               </label>
               <select
                 id="assetType"
-                value={selectedType}
-                onChange={(e) => setSelectedType(e.target.value as any)}
+                value={uploadAssetType}
+                onChange={(e) => setUploadAssetType(e.target.value as any)}
                 className="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm"
               >
                 <option value="character-asset">Character Asset</option>
@@ -144,7 +159,7 @@ export function AssetManager() {
               </select>
             </div>
           </div>
-          
+
           <div>
             <label htmlFor="assetDescription" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               Description
@@ -158,7 +173,7 @@ export function AssetManager() {
               className="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm"
             />
           </div>
-          
+
           <div>
             <label htmlFor="assetFile" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               File
@@ -171,7 +186,7 @@ export function AssetManager() {
               className="mt-1 block w-full text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-blue-900 dark:file:text-blue-400"
             />
           </div>
-          
+
           <button
             type="submit"
             disabled={isUploading || !newAsset.file || !newAsset.name.trim() || !newAsset.description.trim()}

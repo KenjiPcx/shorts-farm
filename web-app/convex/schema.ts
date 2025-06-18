@@ -17,18 +17,21 @@ export default defineSchema({
     description: v.string(),
     characterId: v.optional(v.id("characters")),
     castId: v.optional(v.id("casts")),
-  }),
+  })
+    .index("by_characterId", ["characterId"])
+    .index("by_castId", ["castId"]),
 
   characters: defineTable({
     name: v.string(),
     description: v.string(),
-    assets: v.optional(v.array(v.id("assets"))),
     castId: v.id("casts"),
+    voiceId: v.optional(v.string()), // For TTS voice model ID
   }).index("by_castId", ["castId"]),
 
   // Casts of characters for videos
   casts: defineTable({
     name: v.string(),
+    dynamics: v.optional(v.string()), // A description of the relationships and dynamics between characters
   }),
 
   projects: defineTable({
@@ -51,15 +54,24 @@ export default defineSchema({
 
   scripts: defineTable({
     projectId: v.id("projects"),
-    // A script is now a series of dialogue lines
-    dialogue: v.array(
+    // A script is a series of scenes that direct the video.
+    scenes: v.array(
       v.object({
-        character: v.string(),
-        line: v.string(),
         sceneNumber: v.number(),
-        imageQuery: v.string(),
-        mediaId: v.optional(v.id("media")), // For scene-specific images
-        voiceStorageId: v.optional(v.string()), // For generated voiceovers
+        type: v.union(v.literal("dialogue"), v.literal("content"), v.literal("fx")),
+
+        // For type: "dialogue"
+        characterId: v.optional(v.id("characters")),
+        line: v.optional(v.string()),
+        voiceStorageId: v.optional(v.string()),
+
+        // For type: "content"
+        title: v.optional(v.string()),
+        text: v.optional(v.string()),
+
+        // For type: "fx"
+        soundAssetId: v.optional(v.id("assets")),
+        visualEffect: v.optional(v.string()),
       })
     ),
   }).index("by_projectId", ["projectId"]),
