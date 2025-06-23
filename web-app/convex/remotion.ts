@@ -52,7 +52,6 @@ export const renderVideo = internalAction({
             codec: "h264",
             maxRetries: 2,
             privacy: "public",
-            framesPerLambda: 50,
             timeoutInMilliseconds: 300000, // 5 minutes
             // The webhook is now essential for getting the final video back into Convex
             webhook: {
