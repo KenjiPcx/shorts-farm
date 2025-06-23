@@ -8,21 +8,23 @@
  * @module
  */
 
-import type * as agents_gatherContent from "../agents/gatherContent.js";
-import type * as agents_lessonPlanner from "../agents/lessonPlanner.js";
-import type * as agents_scriptWriter from "../agents/scriptWriter.js";
-import type * as agents_tools from "../agents/tools.js";
-import type * as agents_videoRenderer from "../agents/videoRenderer.js";
-import type * as agents_voiceGenerator from "../agents/voiceGenerator.js";
 import type * as assets from "../assets.js";
 import type * as auth from "../auth.js";
+import type * as casts from "../casts.js";
+import type * as characters from "../characters.js";
+import type * as gatherContent from "../gatherContent.js";
 import type * as http from "../http.js";
+import type * as lessonPlanner from "../lessonPlanner.js";
 import type * as media from "../media.js";
+import type * as model from "../model.js";
 import type * as projects from "../projects.js";
-import type * as queries from "../queries.js";
+import type * as remotion from "../remotion.js";
+import type * as scriptWriter from "../scriptWriter.js";
 import type * as scripts from "../scripts.js";
 import type * as seed from "../seed.js";
+import type * as tools from "../tools.js";
 import type * as videos from "../videos.js";
+import type * as voiceGenerator from "../voiceGenerator.js";
 import type * as workflow from "../workflow.js";
 
 import type {
@@ -40,21 +42,23 @@ import type {
  * ```
  */
 declare const fullApi: ApiFromModules<{
-  "agents/gatherContent": typeof agents_gatherContent;
-  "agents/lessonPlanner": typeof agents_lessonPlanner;
-  "agents/scriptWriter": typeof agents_scriptWriter;
-  "agents/tools": typeof agents_tools;
-  "agents/videoRenderer": typeof agents_videoRenderer;
-  "agents/voiceGenerator": typeof agents_voiceGenerator;
   assets: typeof assets;
   auth: typeof auth;
+  casts: typeof casts;
+  characters: typeof characters;
+  gatherContent: typeof gatherContent;
   http: typeof http;
+  lessonPlanner: typeof lessonPlanner;
   media: typeof media;
+  model: typeof model;
   projects: typeof projects;
-  queries: typeof queries;
+  remotion: typeof remotion;
+  scriptWriter: typeof scriptWriter;
   scripts: typeof scripts;
   seed: typeof seed;
+  tools: typeof tools;
   videos: typeof videos;
+  voiceGenerator: typeof voiceGenerator;
   workflow: typeof workflow;
 }>;
 declare const fullApiWithMounts: typeof fullApi;

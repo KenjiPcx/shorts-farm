@@ -6,9 +6,8 @@ import {
   useConvexAuth,
 } from "convex/react";
 import { useAuthActions } from "@convex-dev/auth/react";
-import { useState } from "react";
-import { SignInForm } from "./components/SignInForm";
-import { Dashboard } from "./components/Dashboard";
+import { Dashboard } from "./components/dashboard";
+import { AuthForm } from "./components/auth-form";
 
 export default function App() {
   return (
@@ -19,9 +18,7 @@ export default function App() {
           <Dashboard />
         </Authenticated>
         <Unauthenticated>
-          <div className="flex justify-center">
-            <SignInForm />
-          </div>
+          <AuthForm />
         </Unauthenticated>
       </main>
     </div>

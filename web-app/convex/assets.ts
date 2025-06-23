@@ -1,6 +1,6 @@
 import { mutation, internalQuery, query } from "./_generated/server";
 import { v } from "convex/values";
-import { Doc, Id } from "./_generated/dataModel";
+import { vAsset } from "./schema";
 
 // Generates a URL for uploading a file to Convex file storage.
 export const generateUploadUrl = mutation(async (ctx) => {
@@ -9,14 +9,7 @@ export const generateUploadUrl = mutation(async (ctx) => {
 
 // Creates a new asset in the database after a file has been uploaded.
 export const createAsset = mutation({
-    args: {
-        storageId: v.string(),
-        name: v.string(),
-        description: v.string(),
-        type: v.union(v.literal("character-asset"), v.literal("background-asset"), v.literal("sound-effect")),
-        characterId: v.optional(v.id("characters")),
-        castId: v.optional(v.id("casts")),
-    },
+    args: vAsset,
     handler: async (ctx, args) => {
         await ctx.db.insert("assets", {
             ...args
@@ -24,69 +17,28 @@ export const createAsset = mutation({
     },
 });
 
-// Creates a new cast.
-export const createCast = mutation({
-    args: {
-        name: v.string(),
-        dynamics: v.optional(v.string()),
-    },
+export const get = internalQuery({
+    args: { id: v.id("assets") },
     handler: async (ctx, args) => {
-        return await ctx.db.insert("casts", {
-            name: args.name,
-            dynamics: args.dynamics,
-        });
+        return await ctx.db.get(args.id);
     },
 });
 
-// Creates a new character and assigns them to a cast.
-export const createCharacter = mutation({
-    args: {
-        name: v.string(),
-        description: v.string(),
-        castId: v.id("casts"),
-        voiceId: v.optional(v.string()),
-    },
+export const getCharacterAssets = internalQuery({
+    args: { characterId: v.id("characters") },
     handler: async (ctx, args) => {
-        return await ctx.db.insert("characters", {
-            ...args
-        });
-    }
-});
-
-export const getCast = internalQuery({
-    args: { castId: v.id("casts") },
-    handler: async (ctx, args): Promise<Doc<"casts"> | null> => {
-        return await ctx.db.get(args.castId);
-    },
-});
-
-// Gets all characters for a cast, along with their associated assets.
-export const getCharactersForCast = internalQuery({
-    args: { castId: v.id("casts") },
-    handler: async (ctx, args) => {
-        // 1. Get all characters for the cast
-        const characters = await ctx.db
-            .query("characters")
-            .withIndex("by_castId", (q) => q.eq("castId", args.castId))
-            .collect();
-
-        // 2. Get all character assets for the cast
-        const castAssets = await ctx.db
+        const assets = await ctx.db
             .query("assets")
-            .withIndex("by_castId", (q) => q.eq("castId", args.castId))
-            .filter(q => q.eq(q.field("type"), "character-asset"))
+            .withIndex("by_characterId", (q) => q.eq("characterId", args.characterId))
             .collect();
 
-        // 3. Map assets to their characters
-        const charactersWithAssets = characters.map((character) => {
-            const assets = castAssets
-                .filter((asset) => asset.characterId === character._id)
-                .map(asset => ({ name: asset.name, description: asset.description }));
-            return { ...character, assets };
-        });
-
-        return charactersWithAssets;
-    },
+        return Promise.all(
+            assets.map(async (asset) => {
+                const url = await ctx.storage.getUrl(asset.storageId);
+                return { ...asset, url };
+            })
+        );
+    }
 });
 
 export const getBackgroundAssets = query({
@@ -115,10 +67,11 @@ export const getAssets = query({
         type: v.optional(v.union(v.literal("character-asset"), v.literal("background-asset"), v.literal("sound-effect"))),
     },
     handler: async (ctx, args) => {
-        const assets = await ctx.db
-            .query("assets")
-            .filter(q => q.eq(q.field("type"), args.type))
-            .collect();
+        let query = ctx.db.query("assets");
+        if (args.type) {
+            query = query.filter(q => q.eq(q.field("type"), args.type));
+        }
+        const assets = await query.collect();
 
         const assetsWithUrls = await Promise.all(
             assets.map(async (asset) => {
@@ -129,6 +82,47 @@ export const getAssets = query({
                 return { ...asset, url };
             })
         );
-        return assetsWithUrls.filter(a => a !== null);
+        return assetsWithUrls.filter((a): a is Exclude<typeof a, null> => a !== null);
     },
+});
+
+export const getAssetUrl = query({
+    args: { storageId: v.string() },
+    handler: async (ctx, args) => {
+        return await ctx.storage.getUrl(args.storageId as any);
+    },
+});
+
+export const getAssetsForCast = internalQuery({
+    args: {
+        castId: v.id("casts"),
+    },
+    handler: async (ctx, args) => {
+        return await ctx.db.query("assets")
+            .withIndex("by_castId", q => q.eq("castId", args.castId))
+            .collect();
+    }
+});
+
+export const updateAsset = mutation({
+    args: {
+        assetId: v.id("assets"),
+        name: v.optional(v.string()),
+        description: v.optional(v.string()),
+    },
+    handler: async (ctx, args) => {
+        const { assetId, ...rest } = args;
+        await ctx.db.patch(assetId, rest);
+    },
+});
+
+export const deleteAsset = mutation({
+    args: { assetId: v.id("assets") },
+    handler: async (ctx, args) => {
+        const asset = await ctx.db.get(args.assetId);
+        if (asset) {
+            await ctx.storage.delete(asset.storageId);
+            await ctx.db.delete(args.assetId);
+        }
+    }
 }); 

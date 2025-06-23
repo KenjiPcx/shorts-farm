@@ -21,7 +21,7 @@ export const southPark = mutation({
         }
 
         // 1. Create the cast
-        const castId = await ctx.runMutation(api.assets.createCast, {
+        const castId = await ctx.runMutation(api.casts.createCast, {
             name: "South Park",
             dynamics: "A group of fourth-graders in the dysfunctional town of South Park. The dynamic often revolves around the cynical and moralistic Kyle, and the narcissistic, manipulative Eric Cartman. They are frequently at odds, with their arguments forming the core of many discussions and conflicts.",
         });
@@ -32,7 +32,7 @@ export const southPark = mutation({
         console.log(`Created cast "South Park" with id: ${castId}`);
 
         // 2. Create Cartman
-        await ctx.runMutation(api.assets.createCharacter, {
+        await ctx.runMutation(api.characters.createCharacter, {
             name: "Cartman",
             description: "A foul-mouthed, narcissistic, and intolerant fourth-grader who is often the antagonist of the show.",
             castId: castId,
@@ -41,7 +41,7 @@ export const southPark = mutation({
         console.log("Created character: Cartman");
 
         // 3. Create Kyle
-        await ctx.runMutation(api.assets.createCharacter, {
+        await ctx.runMutation(api.characters.createCharacter, {
             name: "Kyle",
             description: "A practical, intelligent, and moralistic boy who is often the voice of reason.",
             castId: castId,

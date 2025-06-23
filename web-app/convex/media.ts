@@ -4,8 +4,8 @@ import { v } from "convex/values";
 export const create = internalMutation({
     args: {
         projectId: v.id("projects"),
-        storageId: v.string(),
-        type: v.union(v.literal("image"), v.literal("audio")),
+        storageId: v.id("_storage"),
+        type: v.union(v.literal("image"), v.literal("audio"), v.literal("video")),
     },
     handler: async (ctx, args) => {
         return await ctx.db.insert("media", {

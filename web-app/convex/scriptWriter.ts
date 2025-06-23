@@ -1,0 +1,138 @@
+import { internalAction } from "./_generated/server";
+import { v } from "convex/values";
+import { api, internal } from "./_generated/api";
+import { z } from "zod";
+import { Doc, Id } from "./_generated/dataModel";
+import { vLessonPlanScene } from "./schema";
+import dedent from "dedent";
+import { CharacterWithAssets } from "./characters";
+import { generateObject } from "ai";
+import { model } from "./model";
+
+const FinalDialogueTurnSchema = z.object({
+    character: z.string().describe("The name of the character speaking."),
+    line: z.string().describe("The character's final, polished line."),
+    expression: z.string().describe("The character's expression (e.g., 'happy', 'sad', 'thinking'). This must match one of the available assets for the character."),
+    characterAssetStorageId: z.string().describe("The storage ID of the character's asset to use for the expression."),
+});
+
+const FinalSceneSchema = z.object({
+    scenes: z.array(z.object({
+        sceneNumber: z.number().describe("The order of the scene in the video."),
+        contentImageUrl: z.string().optional().describe("The URL of the image to display for this scene, taken from the plan."),
+        contentImageToGenerate: z.string().optional().describe("The DALL-E prompt for the image to generate, taken from the plan."),
+        dialogues: z.array(FinalDialogueTurnSchema).describe("The sequence of final dialogue turns for this scene."),
+    })).describe("The full, final script for the video."),
+});
+
+// --- Agent Definitions ---
+
+const systemPrompt = dedent`
+    You are a professional scriptwriter for educational videos. You will be given a high-level plan for a video, including scenes with content images and dialogue descriptions.
+
+    Your job is to turn this plan into a final, polished script.
+    - For each dialogue turn, take the 'lineDescription' and write a natural, engaging line for the specified 'character'.
+    - Choose an 'expression' for the character that fits the line. The expression must be one of the available assets provided for that character.
+    - The 'contentImageUrl' and 'contentImageToGenerate' are for context; do not change them. Simply pass them through to the final output.
+`
+
+// --- Main Action ---
+
+export const write = internalAction({
+    args: {
+        projectId: v.id("projects"),
+        castId: v.id("casts"),
+        userId: v.string(),
+        lessonPlan: v.array(vLessonPlanScene),
+    },
+    handler: async (ctx, args): Promise<Doc<"scripts">["scenes"]> => {
+        try {
+            const { projectId, lessonPlan, castId, userId } = args;
+
+            const cast = await ctx.runQuery(internal.casts.getCast, { castId });
+            if (!cast) throw new Error("Cast not found.");
+
+            const characters: CharacterWithAssets[] = await ctx.runQuery(internal.characters.getCharactersForCastWithAssets, { castId }); // Already has assets
+            if (!characters || characters.length === 0) throw new Error("Characters not found for cast.");
+
+            const characterMap = new Map<string, Doc<"characters">>(characters.map(c => [c.name, c]));
+            const castDynamics = `The cast is ${cast.name}. Their dynamic is: ${cast.dynamics}`;
+
+            const { object: finalScript } = await generateObject({
+                model: model,
+                system: systemPrompt,
+                prompt: dedent`
+                Cast Info:
+                ${castDynamics}
+                Characters:
+                ${JSON.stringify(characters)}
+                High-Level Plan:
+                ${JSON.stringify(lessonPlan)}
+                Please write the final, detailed script. The script should be about 60 seconds to complete.
+                The script should tie back to the cast and their characters's universe.
+                You should act as the characters, and write the script in their voice.`,
+                schema: FinalSceneSchema,
+            });
+
+            console.log("--- Final Script ---");
+
+            // Get all unique characterAssetStorageId from the final script
+            const characterAssetStorageIds = new Set<string>();
+            for (const scene of finalScript.scenes) {
+                for (const dialogue of scene.dialogues) {
+                    characterAssetStorageIds.add(dialogue.characterAssetStorageId);
+                }
+            }
+
+            // Get all asset urls from the characterAssetStorageIds and create a map of storageId to url
+            const assetUrls = new Map<string, string>();
+            await Promise.all(Array.from(characterAssetStorageIds).map(async (storageId) => {
+                const url = await ctx.storage.getUrl(storageId as Id<"_storage">);
+                if (url) {
+                    assetUrls.set(storageId, url);
+                }
+            }));
+
+            const finalScenes = finalScript.scenes.map((scene) => {
+                const dialogues = scene.dialogues.map(dialogue => {
+                    const characterDoc = characterMap.get(dialogue.character);
+                    if (!characterDoc) {
+                        throw new Error(`Could not find character: ${dialogue.character}`);
+                    }
+                    return {
+                        characterId: characterDoc._id,
+                        line: dialogue.line,
+                        characterExpression: dialogue.expression,
+                        characterAssetUrl: assetUrls.get(dialogue.characterAssetStorageId),
+                    };
+                });
+                return {
+                    sceneNumber: scene.sceneNumber,
+                    contentImageUrl: scene.contentImageUrl,
+                    contentImageToGenerate: scene.contentImageToGenerate,
+                    dialogues: dialogues,
+                };
+            });
+
+            const scriptId = await ctx.runMutation(internal.scripts.create, {
+                projectId: args.projectId,
+                scenes: finalScenes,
+            });
+
+            await ctx.runMutation(api.projects.updateProjectScript, {
+                projectId: args.projectId,
+                scriptId: scriptId,
+            });
+
+            return finalScenes;
+        } catch (error) {
+            console.error("Error in script writer:", error);
+            await ctx.runMutation(api.projects.updateProjectStatus, {
+                projectId: args.projectId,
+                status: "error",
+                statusMessage: error instanceof Error ? error.message : "Unknown error",
+            });
+            throw error;
+        }
+    },
+}); 

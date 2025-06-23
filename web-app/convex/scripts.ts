@@ -1,22 +1,16 @@
-import { internalMutation, internalQuery } from "./_generated/server";
+import { internalMutation, internalQuery, query } from "./_generated/server";
 import { v } from "convex/values";
+import { vScene, vCaption } from "./schema";
 
 export const create = internalMutation({
     args: {
         projectId: v.id("projects"),
-        dialogue: v.array(
-            v.object({
-                character: v.string(),
-                line: v.string(),
-                sceneNumber: v.number(),
-                imageQuery: v.string(),
-            })
-        ),
+        scenes: v.array(vScene),
     },
     handler: async (ctx, args) => {
         return await ctx.db.insert("scripts", {
             projectId: args.projectId,
-            dialogue: args.dialogue.map(d => ({ ...d })),
+            scenes: args.scenes,
         });
     },
 });
@@ -30,59 +24,67 @@ export const get = internalQuery({
     }
 });
 
-export const addMediaToScene = internalMutation({
+export const addVoiceToDialogueTurn = internalMutation({
     args: {
         scriptId: v.id("scripts"),
         sceneNumber: v.number(),
-        mediaId: v.id("media"),
+        dialogueIndex: v.number(),
+        voiceStorageId: v.id("_storage"),
+        voiceUrl: v.string(),
+        audioDuration: v.number(),
     },
     handler: async (ctx, args) => {
-        const script = await ctx.db.get(args.scriptId);
+        const { scriptId, sceneNumber, dialogueIndex, voiceStorageId, voiceUrl, audioDuration } = args;
+
+        const script = await ctx.db.get(scriptId);
         if (!script) {
-            throw new Error("Script not found");
+            throw new Error(`Script with id ${scriptId} not found`);
         }
-        const dialogueLine = script.dialogue.find(d => d.sceneNumber === args.sceneNumber);
-        if (!dialogueLine) {
-            throw new Error("Dialogue line not found");
+
+        const scene = script.scenes.find(s => s.sceneNumber === sceneNumber);
+        if (!scene) {
+            throw new Error(`Scene with number ${sceneNumber} not found in script ${scriptId}`);
         }
-        dialogueLine.mediaId = args.mediaId;
-        await ctx.db.patch(args.scriptId, { dialogue: script.dialogue });
+
+        if (scene.dialogues[dialogueIndex]) {
+            scene.dialogues[dialogueIndex].voiceStorageId = voiceStorageId;
+            scene.dialogues[dialogueIndex].voiceUrl = voiceUrl;
+            scene.dialogues[dialogueIndex].audioDuration = audioDuration;
+        }
+
+        await ctx.db.patch(script._id, { scenes: script.scenes });
+    },
+});
+
+export const addCaptionsToScript = internalMutation({
+    args: {
+        scriptId: v.id("scripts"),
+        captions: v.array(vCaption),
+    },
+    handler: async (ctx, args) => {
+        await ctx.db.patch(args.scriptId, { captions: args.captions });
+    },
+});
+
+export const getScriptByProjectId = query({
+    args: {
+        projectId: v.id("projects"),
+    },
+    handler: async (ctx, args) => {
+        const script = await ctx.db.query("scripts").withIndex("by_projectId", (q) => q.eq("projectId", args.projectId)).first();
+        return script;
     }
 });
 
-export const updateScenes = internalMutation({
+export const deleteScriptByProjectId = internalMutation({
     args: {
-        scriptId: v.id("scripts"),
-        scenes: v.array(
-            v.object({
-                sceneNumber: v.number(),
-                character: v.string(),
-                line: v.string(),
-                imageQuery: v.string(),
-            })
-        ),
+        projectId: v.id("projects"),
     },
     handler: async (ctx, args) => {
-        await ctx.db.patch(args.scriptId, { dialogue: args.scenes });
-    }
-});
-
-export const addVoiceToDialogueLine = internalMutation({
-    args: {
-        scriptId: v.id("scripts"),
-        sceneNumber: v.number(),
-        voiceStorageId: v.string(),
-    },
-    handler: async (ctx, args) => {
-        const script = await ctx.db.get(args.scriptId);
+        const script = await ctx.db.query("scripts").withIndex("by_projectId", (q) => q.eq("projectId", args.projectId)).first();
         if (!script) {
             throw new Error("Script not found");
         }
-        const dialogueLine = script.dialogue.find(d => d.sceneNumber === args.sceneNumber);
-        if (!dialogueLine) {
-            throw new Error("Dialogue line not found");
-        }
-        dialogueLine.voiceStorageId = args.voiceStorageId;
-        await ctx.db.patch(args.scriptId, { dialogue: script.dialogue });
+        await ctx.db.delete(script._id);
     }
-}); 
+});
