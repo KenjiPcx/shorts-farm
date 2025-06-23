@@ -1,10 +1,11 @@
-import { mutation, internalQuery, query } from "./_generated/server";
+import { mutation, internalQuery, query, action } from "./_generated/server";
 import { v } from "convex/values";
 import { vAsset } from "./schema";
 import { PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { tigris, TIGRIS_BUCKET_NAME } from "./lib/tigris";
 import { v4 as uuidv4 } from "uuid";
+import { api } from "./_generated/api";
 
 const S3_PRESIGNED_URL_EXPIRATION_SECONDS = 3600; // 1 hour
 
@@ -113,16 +114,22 @@ export const deleteAsset = mutation({
     handler: async (ctx, args) => {
         const asset = await ctx.db.get(args.assetId);
         if (asset) {
-            // Delete from Tigris
-            const key = asset.url.substring(asset.url.lastIndexOf('/') + 1);
-            const command = new DeleteObjectCommand({
-                Bucket: TIGRIS_BUCKET_NAME,
-                Key: key,
-            });
-            await tigris.send(command);
-
             // Delete from Convex
             await ctx.db.delete(args.assetId);
+            // Delete from Tigris
+            await ctx.scheduler.runAfter(0, api.assets.deleteAssetFromTigris, { url: asset.url });
         }
     }
-}); 
+});
+
+export const deleteAssetFromTigris = action({
+    args: { url: v.string() },
+    handler: async (ctx, args) => {
+        const key = args.url.substring(args.url.lastIndexOf('/') + 1);
+        const command = new DeleteObjectCommand({
+            Bucket: TIGRIS_BUCKET_NAME,
+            Key: key,
+        });
+        await tigris.send(command);
+    }
+});

@@ -45,6 +45,22 @@ export const ShortsFarmSchema = z.object({
 
 type ShortsFarmProps = z.infer<typeof ShortsFarmSchema>;
 
+// --- Custom Types for Timing ---
+type DialogueTurn = z.infer<typeof DialogueTurnSchema>;
+type Scene = z.infer<typeof SceneSchema>;
+
+type DialogueWithTiming = DialogueTurn & {
+    startFrame: number;
+    durationInFrames: number;
+};
+
+type SceneWithTiming = Omit<Scene, 'dialogues'> & {
+    startFrame: number;
+    durationInFrames: number;
+    dialogues: DialogueWithTiming[];
+};
+// --- End Custom Types ---
+
 const DIALOGUE_BUFFER_SECONDS = 0.5; // 0.5 second pause between dialogues
 
 export const calculateShortsFarmMetadata: CalculateMetadataFunction<ShortsFarmProps> = async ({ props }) => {
@@ -89,37 +105,56 @@ export const ShortsFarmComposition: React.FC<z.infer<typeof ShortsFarmSchema>> =
     if (characterIds[1]) characterPositions.set(characterIds[1], 'right');
     // --- End Character Positioning Logic ---
 
-    let cumulativeFrames = 0;
+    // --- Timing Calculation ---
+    const { scenesWithTiming } = script.scenes.reduce<{
+        scenesWithTiming: SceneWithTiming[];
+        cumulativeFrames: number;
+    }>(
+        (acc, currentScene) => {
+            const sceneStartFrame = acc.cumulativeFrames;
+            let sceneCumulativeFrames = acc.cumulativeFrames;
 
-    const scenesWithTiming = script.scenes.map(scene => {
-        const sceneStartFrame = cumulativeFrames;
+            const dialoguesWithTiming = currentScene.dialogues.map(dialogue => {
+                const startFrame = sceneCumulativeFrames;
+                const durationSeconds = dialogue.audioDuration ?? (dialogue.line.length * 0.1);
+                // Ensure a minimum duration of 1 frame to prevent hangs
+                const durationInFrames = Math.max(1, Math.ceil(durationSeconds * fps));
+                sceneCumulativeFrames += durationInFrames + Math.ceil(DIALOGUE_BUFFER_SECONDS * fps);
+                return {
+                    ...dialogue,
+                    startFrame,
+                    durationInFrames,
+                };
+            });
 
-        const dialoguesWithTiming = scene.dialogues.map(dialogue => {
-            const startFrame = cumulativeFrames;
-            const durationSeconds = dialogue.audioDuration ?? (dialogue.line.length * 0.1);
-            const durationInFrames = Math.ceil(durationSeconds * fps);
-            cumulativeFrames = startFrame + durationInFrames + Math.ceil(DIALOGUE_BUFFER_SECONDS * fps);
-            return {
-                ...dialogue,
-                startFrame,
-                durationInFrames,
+            const sceneDurationInFrames = sceneCumulativeFrames - sceneStartFrame;
+
+            const newSceneWithTiming: SceneWithTiming = {
+                ...currentScene,
+                dialogues: dialoguesWithTiming,
+                startFrame: sceneStartFrame,
+                durationInFrames: sceneDurationInFrames,
             };
-        });
 
-        const sceneDurationInFrames = cumulativeFrames - sceneStartFrame;
-
-        return {
-            ...scene,
-            dialogues: dialoguesWithTiming,
-            startFrame: sceneStartFrame,
-            durationInFrames: sceneDurationInFrames,
-        };
-    });
+            return {
+                scenesWithTiming: [...acc.scenesWithTiming, newSceneWithTiming],
+                cumulativeFrames: sceneCumulativeFrames
+            };
+        },
+        { scenesWithTiming: [], cumulativeFrames: 0 }
+    );
+    // --- End Timing Calculation ---
 
     return (
         <AbsoluteFill style={{ backgroundColor: 'black' }}>
             {backgroundUrl && (
-                <Video muted loop src={backgroundUrl} style={{ position: 'absolute', width: '100%', height: '100%', objectFit: 'cover' }} />
+                <Video
+                    muted
+                    loop
+                    src={backgroundUrl}
+                    style={{ position: 'absolute', width: '100%', height: '100%', objectFit: 'cover' }}
+                    delayRenderTimeoutInMilliseconds={120000}
+                />
             )}
 
             {scenesWithTiming.map((scene) => (
@@ -135,6 +170,7 @@ export const ShortsFarmComposition: React.FC<z.infer<typeof ShortsFarmSchema>> =
                                         zIndex: 0,
                                         transform: 'translateY(-15%)',
                                     }}
+                                    delayRenderTimeoutInMilliseconds={120000}
                                 />
                             </AbsoluteFill>
                         </Sequence>
@@ -146,15 +182,16 @@ export const ShortsFarmComposition: React.FC<z.infer<typeof ShortsFarmSchema>> =
                                     <Img
                                         src={dialogue.characterAssetUrl}
                                         style={{
-                                            height: '25%',
+                                            height: '25%', // 50% smaller
                                             zIndex: 1,
                                             position: 'absolute',
-                                            bottom: '10%',
-                                            ...(characterPositions.get(dialogue.characterId) === 'left' ? { left: '10%' } : { right: '10%' }),
+                                            bottom: '20%',
+                                            ...(characterPositions.get(dialogue.characterId) === 'left' ? { left: '5%' } : { right: '5%' }),
                                         }}
+                                        delayRenderTimeoutInMilliseconds={120000}
                                     />
                                 )}
-                                {dialogue.voiceUrl && <Audio src={dialogue.voiceUrl} />}
+                                {dialogue.voiceUrl && <Audio src={dialogue.voiceUrl} delayRenderTimeoutInMilliseconds={120000} />}
                             </AbsoluteFill>
                         </Sequence>
                     ))}

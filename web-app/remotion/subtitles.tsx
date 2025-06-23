@@ -19,7 +19,7 @@ export const Subtitles: React.FC<{
             captions: captions.map((c, i) => ({
                 ...c,
                 text: `${i === 0 ? "" : " "}${c.text}`,
-            })), // We need to prefix each text with a space to show captions correctly
+            })),
             combineTokensWithinMilliseconds: 1500, // Show 1-2 words at a time
         }), [captions]);
 
@@ -48,7 +48,7 @@ export const Subtitles: React.FC<{
                             id: i,
                             start: token.fromMs / 1000 * fps,
                             end: token.toMs / 1000 * fps,
-                            text: token.text,
+                            text: token.text.trim(),
                         }
                         return <Word key={item.id} frame={frame} item={item} />
                     })}
