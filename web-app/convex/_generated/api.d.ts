@@ -15,6 +15,7 @@ import type * as characters from "../characters.js";
 import type * as gatherContent from "../gatherContent.js";
 import type * as http from "../http.js";
 import type * as lessonPlanner from "../lessonPlanner.js";
+import type * as lib_tigris from "../lib/tigris.js";
 import type * as media from "../media.js";
 import type * as model from "../model.js";
 import type * as projects from "../projects.js";
@@ -49,6 +50,7 @@ declare const fullApi: ApiFromModules<{
   gatherContent: typeof gatherContent;
   http: typeof http;
   lessonPlanner: typeof lessonPlanner;
+  "lib/tigris": typeof lib_tigris;
   media: typeof media;
   model: typeof model;
   projects: typeof projects;

@@ -13,7 +13,7 @@ const FinalDialogueTurnSchema = z.object({
     character: z.string().describe("The name of the character speaking."),
     line: z.string().describe("The character's final, polished line."),
     expression: z.string().describe("The character's expression (e.g., 'happy', 'sad', 'thinking'). This must match one of the available assets for the character."),
-    characterAssetStorageId: z.string().describe("The storage ID of the character's asset to use for the expression."),
+    characterAssetUrl: z.string().describe("The public URL of the character's asset to use for the expression. This must be one of the URLs from the character's asset list."),
 });
 
 const FinalSceneSchema = z.object({
@@ -33,6 +33,7 @@ const systemPrompt = dedent`
     Your job is to turn this plan into a final, polished script.
     - For each dialogue turn, take the 'lineDescription' and write a natural, engaging line for the specified 'character'.
     - Choose an 'expression' for the character that fits the line. The expression must be one of the available assets provided for that character.
+    - You must select the corresponding 'characterAssetUrl' from the character's assets based on the chosen expression.
     - The 'contentImageUrl' and 'contentImageToGenerate' are for context; do not change them. Simply pass them through to the final output.
 `
 
@@ -76,23 +77,6 @@ export const write = internalAction({
 
             console.log("--- Final Script ---");
 
-            // Get all unique characterAssetStorageId from the final script
-            const characterAssetStorageIds = new Set<string>();
-            for (const scene of finalScript.scenes) {
-                for (const dialogue of scene.dialogues) {
-                    characterAssetStorageIds.add(dialogue.characterAssetStorageId);
-                }
-            }
-
-            // Get all asset urls from the characterAssetStorageIds and create a map of storageId to url
-            const assetUrls = new Map<string, string>();
-            await Promise.all(Array.from(characterAssetStorageIds).map(async (storageId) => {
-                const url = await ctx.storage.getUrl(storageId as Id<"_storage">);
-                if (url) {
-                    assetUrls.set(storageId, url);
-                }
-            }));
-
             const finalScenes = finalScript.scenes.map((scene) => {
                 const dialogues = scene.dialogues.map(dialogue => {
                     const characterDoc = characterMap.get(dialogue.character);
@@ -103,7 +87,7 @@ export const write = internalAction({
                         characterId: characterDoc._id,
                         line: dialogue.line,
                         characterExpression: dialogue.expression,
-                        characterAssetUrl: assetUrls.get(dialogue.characterAssetStorageId),
+                        characterAssetUrl: dialogue.characterAssetUrl,
                     };
                 });
                 return {

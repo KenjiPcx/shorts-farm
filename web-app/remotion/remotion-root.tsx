@@ -20,7 +20,6 @@ const defaultProps: z.infer<typeof ShortsFarmSchema> = {
                             "characterExpression": "Default",
                             "characterId": "ks7apxaz98hqdgvc2fm5fg8yrx7j3s9m", "line": "Alright, you guys, so there's this thing called LangGraph. It helps build 'workflows,' which are like, step-by-step plans for AI. And then there are 'agents,' which are more like... well, Anthropic says they're systems that use an LLM to reason through a sequence of actions.",
                             "voiceUrl": "https://shocking-jellyfish-517.convex.cloud/api/storage/260f236a-00b5-4efe-989e-99462c1185a7",
-                            "wordTimings": [{ "end": 14.0278125, "start": 0.45, "word": "You guys So there's this thing called La graph it helps build workflows, which are like step by step plans for AI and then there are agents which are more like well, Anthropic says there are systems that use an LLM to reason through a sequence of actions." }]
                         },
                         {
                             "audioDuration": 8.385306122448979,
@@ -29,7 +28,6 @@ const defaultProps: z.infer<typeof ShortsFarmSchema> = {
                             "characterId": "ks74y3z2nx1z6acx1am6a253697j2etx",
                             "line": "Oh, wow, a 'reasoning system.' Can it reason its way into doing my homework? Or, more importantly, can it reason me up some Cheesy Poofs? Because that's what I care about, Kyle.",
                             "voiceUrl": "https://shocking-jellyfish-517.convex.cloud/api/storage/692562e0-9ecc-42d2-9c78-4a60145408de",
-                            "wordTimings": [{ "end": 8.254, "start": 0.226, "word": "Oh, wow, a reasoning system. Can it reason its way into doing my homework or more importantly, can it reason me up some cheesy poofs, Because that's what I care about, Kyle." }]
                         }
                     ],
                     "sceneNumber": 1
@@ -37,8 +35,21 @@ const defaultProps: z.infer<typeof ShortsFarmSchema> = {
                 {
                     "contentImageUrl": "https://langchain-ai.github.io/langgraph/tutorials/workflows/img/augmented_llm.png",
                     "dialogues": [
-                        { "audioDuration": 10.631836734693875, "characterAssetUrl": "https://shocking-jellyfish-517.convex.cloud/api/storage/e1680ade-075f-411b-ac4e-7e958a56dda5", "characterExpression": "Default", "characterId": "ks7apxaz98hqdgvc2fm5fg8yrx7j3s9m", "line": "No, Cartman. Think of 'Augmented LLMs' as the building blocks. They can produce structured outputs, not just text, and they can call 'tools' to get information or perform actions. It's about making them more capable.", "voiceUrl": "https://shocking-jellyfish-517.convex.cloud/api/storage/9b77f4fd-ff24-4b6c-af62-18b5bd228e31", "wordTimings": [{ "end": 10.494, "start": 0.258, "word": "No, Cartmen Think of augmented LLms as the building blocks. They can produce structured outputs, not just text, and they can call tools to get information or perform actions. It's about making them more capable." }] },
-                        { "audioDuration": 9.613061224489796, "characterAssetUrl": "https://shocking-jellyfish-517.convex.cloud/api/storage/060ce410-367e-4cba-a5eb-01558d08d268", "characterExpression": "Default", "characterId": "ks74y3z2nx1z6acx1am6a253697j2etx", "line": "Tools, huh? Can I give it a 'Make Kyle Shut His Freakin' Mouth' tool? Or how about an 'Unlimited Cheesy Poofs Dispenser' tool? That's a tool society *needs*, Kyle!", "voiceUrl": "https://shocking-jellyfish-517.convex.cloud/api/storage/bdbeddef-5d4a-4d8a-aaf4-47e3382480e2", "wordTimings": [{ "end": 9.438, "start": 0.226, "word": "Tools,, can I give it a make Kyle shut's freaking mouth tool or how about an unlimited cheesy poof dispenser tool, That's a tool Society asterisk needs asterisk, Kyle." }] }], "sceneNumber": 2
+                        {
+                            "audioDuration": 10.631836734693875,
+                            "characterAssetUrl": "https://shocking-jellyfish-517.convex.cloud/api/storage/e1680ade-075f-411b-ac4e-7e958a56dda5",
+                            "characterExpression": "Default",
+                            "characterId": "ks7apxaz98hqdgvc2fm5fg8yrx7j3s9m", "line": "No, Cartman. Think of 'Augmented LLMs' as the building blocks. They can produce structured outputs, not just text, and they can call 'tools' to get information or perform actions. It's about making them more capable.", "voiceUrl": "https://shocking-jellyfish-517.convex.cloud/api/storage/9b77f4fd-ff24-4b6c-af62-18b5bd228e31"
+                        },
+                        {
+                            "audioDuration": 9.613061224489796,
+                            "characterAssetUrl": "https://shocking-jellyfish-517.convex.cloud/api/storage/060ce410-367e-4cba-a5eb-01558d08d268",
+                            "characterExpression": "Default", "characterId": "ks74y3z2nx1z6acx1am6a253697j2etx",
+                            "line": "Tools, huh? Can I give it a 'Make Kyle Shut His Freakin' Mouth' tool? Or how about an 'Unlimited Cheesy Poofs Dispenser' tool? That's a tool society *needs*, Kyle!",
+                            "voiceUrl": "https://shocking-jellyfish-517.convex.cloud/api/storage/bdbeddef-5d4a-4d8a-aaf4-47e3382480e2"
+                        }
+                    ],
+                    "sceneNumber": 2
                 }
             ],
             captions: [

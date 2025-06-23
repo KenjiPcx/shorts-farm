@@ -28,7 +28,7 @@ export function CharacterManager() {
   );
   const createCharacter = useMutation(api.characters.createCharacter);
   const deleteCharacter = useMutation(api.characters.deleteCharacter);
-  const generateUploadUrl = useMutation(api.assets.generateUploadUrl);
+  const generatePresignedUploadUrl = useMutation(api.assets.generatePresignedUploadUrl);
   const createAsset = useMutation(api.assets.createAsset);
 
   const selectedCast = casts?.find(c => c._id === selectedCastId);
@@ -48,12 +48,17 @@ export function CharacterManager() {
 
       // 2. Upload assets for the new character
       for (const assetFile of newCharacter.assets) {
-        const uploadUrl = await generateUploadUrl();
-        const response = await fetch(uploadUrl, { method: "POST", body: assetFile });
-        const { storageId } = await response.json();
+        const { presignedUrl, publicUrl } = await generatePresignedUploadUrl({
+          fileName: assetFile.name,
+          fileType: assetFile.type,
+        });
+        const response = await fetch(presignedUrl, { method: "PUT", headers: { 'Content-Type': assetFile.type }, body: assetFile });
+        if (!response.ok) {
+          throw new Error(`Failed to upload asset ${assetFile.name}: ${await response.text()}`);
+        }
 
         await createAsset({
-          storageId,
+          url: publicUrl,
           name: assetFile.name.split('.')[0], // Use filename as asset name
           description: `Asset for ${newCharacter.name}`,
           type: 'character-asset',
@@ -193,7 +198,7 @@ export function CharacterManager() {
 function CharacterEditModal({ characterId, isOpen, onClose }: { characterId: Id<"characters">, isOpen: boolean, onClose: () => void }) {
   const character = useQuery(api.characters.getWithAssets, { characterId });
   const updateCharacter = useMutation(api.characters.update);
-  const generateUploadUrl = useMutation(api.assets.generateUploadUrl);
+  const generatePresignedUploadUrl = useMutation(api.assets.generatePresignedUploadUrl);
   const createAsset = useMutation(api.assets.createAsset);
   const deleteAsset = useMutation(api.assets.deleteAsset);
 
@@ -223,12 +228,20 @@ function CharacterEditModal({ characterId, isOpen, onClose }: { characterId: Id<
 
     setIsUploading(true);
     try {
-      const uploadUrl = await generateUploadUrl();
-      const response = await fetch(uploadUrl, { method: "POST", body: newAssetFile });
-      const { storageId } = await response.json();
+      const { presignedUrl, publicUrl } = await generatePresignedUploadUrl({
+        fileName: newAssetFile.name,
+        fileType: newAssetFile.type,
+      });
+
+      const response = await fetch(presignedUrl, {
+        method: "PUT",
+        headers: { "Content-Type": newAssetFile.type },
+        body: newAssetFile
+      });
+      if (!response.ok) throw new Error("Failed to upload file to Tigris.");
 
       await createAsset({
-        storageId,
+        url: publicUrl,
         name: newAssetName.trim(),
         description: newAssetDescription.trim(),
         type: 'character-asset',

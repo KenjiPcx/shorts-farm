@@ -29,12 +29,11 @@ export const addVoiceToDialogueTurn = internalMutation({
         scriptId: v.id("scripts"),
         sceneNumber: v.number(),
         dialogueIndex: v.number(),
-        voiceStorageId: v.id("_storage"),
         voiceUrl: v.string(),
         audioDuration: v.number(),
     },
     handler: async (ctx, args) => {
-        const { scriptId, sceneNumber, dialogueIndex, voiceStorageId, voiceUrl, audioDuration } = args;
+        const { scriptId, sceneNumber, dialogueIndex, voiceUrl, audioDuration } = args;
 
         const script = await ctx.db.get(scriptId);
         if (!script) {
@@ -47,7 +46,6 @@ export const addVoiceToDialogueTurn = internalMutation({
         }
 
         if (scene.dialogues[dialogueIndex]) {
-            scene.dialogues[dialogueIndex].voiceStorageId = voiceStorageId;
             scene.dialogues[dialogueIndex].voiceUrl = voiceUrl;
             scene.dialogues[dialogueIndex].audioDuration = audioDuration;
         }

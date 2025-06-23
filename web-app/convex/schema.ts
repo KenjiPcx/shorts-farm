@@ -15,7 +15,6 @@ export const vDialogueTurn = v.object({
   line: v.string(),
   characterExpression: v.string(), // e.g., "happy", "default"
   characterAssetUrl: v.optional(v.string()),
-  voiceStorageId: v.optional(v.id("_storage")),
   voiceUrl: v.optional(v.string()),
   audioDuration: v.optional(v.number()),
 });
@@ -25,6 +24,7 @@ export const vScene = v.object({
   contentImageUrl: v.optional(v.string()), // A URL from the research phase
   contentImageToGenerate: v.optional(v.string()), // A prompt for DALL-E
   dialogues: v.array(vDialogueTurn),
+  statusMessage: v.optional(v.string()),
 });
 
 export const vLessonPlanScene = v.object({
@@ -62,7 +62,7 @@ export const vProject = v.object({
 })
 
 export const vAsset = v.object({
-  storageId: v.id("_storage"),
+  url: v.string(),
   type: v.union(v.literal("character-asset"), v.literal("background-asset"), v.literal("sound-effect")),
   name: v.string(),
   description: v.string(),
@@ -110,14 +110,13 @@ export default defineSchema({
   // Media generated specifically for a project (voiceovers, final video)
   media: defineTable({
     projectId: v.id("projects"),
-    storageId: v.id("_storage"),
+    url: v.string(),
     type: v.union(v.literal("image"), v.literal("audio"), v.literal("video")),
   }).index("by_projectId", ["projectId"]),
 
   // Final rendered videos
   videos: defineTable({
     projectId: v.id("projects"),
-    storageId: v.optional(v.id("_storage")),
     finalUrl: v.optional(v.string()),
   }).index("by_projectId", ["projectId"]),
 });

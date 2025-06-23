@@ -45,7 +45,7 @@ export const getCharactersByCast = query({
     },
 });
 
-export type CharacterWithAssets = Doc<"characters"> & { assets: { name: string, description: string, storageId: Id<"_storage"> }[] };
+export type CharacterWithAssets = Doc<"characters"> & { assets: Doc<"assets">[] };
 
 // Gets all characters for a cast, along with their associated assets.
 export const getCharactersForCastWithAssets = internalQuery({
@@ -66,9 +66,7 @@ export const getCharactersForCastWithAssets = internalQuery({
 
         // 3. Map assets to their characters
         const charactersWithAssets = characters.map((character) => {
-            const assets = castAssets
-                .filter((asset) => asset.characterId === character._id && asset.type === "character-asset")
-                .map(asset => ({ name: asset.name, description: asset.description, storageId: asset.storageId }));
+            const assets = castAssets.filter((asset) => asset.characterId === character._id);
             return { ...character, assets };
         });
 
@@ -89,14 +87,7 @@ export const getWithAssets = query({
             .withIndex("by_characterId", (q) => q.eq("characterId", args.characterId))
             .collect();
 
-        const assetsWithUrls = await Promise.all(
-            assets.map(async (asset) => {
-                const url = await ctx.storage.getUrl(asset.storageId);
-                return { ...asset, url: url! };
-            })
-        );
-
-        return { ...character, assets: assetsWithUrls };
+        return { ...character, assets: assets };
     },
 });
 

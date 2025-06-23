@@ -9,6 +9,9 @@ import {
 } from "@remotion/openai-whisper";
 import { Caption } from "@remotion/captions";
 import OpenAI from "openai";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { tigris, TIGRIS_BUCKET_NAME } from "./lib/tigris";
+import { v4 as uuidv4 } from "uuid";
 
 const FISH_API_KEY = process.env.FISH_API_KEY!;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY!;
@@ -95,7 +98,7 @@ export const generate = internalAction({
             for (const scene of script.scenes) {
                 for (let i = 0; i < scene.dialogues.length; i++) {
                     const dialogue = scene.dialogues[i];
-                    if (dialogue.voiceStorageId) {
+                    if (dialogue.voiceUrl) {
                         console.log(`Skipping voice generation for already processed dialogue: ${dialogue.line.substring(0, 20)}...`);
                         cumulativeDurationMs += (dialogue.audioDuration ?? 0) * 1000 + DIALOGUE_BUFFER_MS;
                         continue;
@@ -105,8 +108,17 @@ export const generate = internalAction({
                         const audioBlob = await generateVoiceover(dialogue.line, character.voiceId);
                         const { captions, duration } = await getTranscription(audioBlob);
 
-                        const storageId = await ctx.storage.store(audioBlob);
-                        const audioUrl = (await ctx.storage.getUrl(storageId)) as string;
+                        // Upload to Tigris
+                        const key = `voice-${uuidv4()}.mp3`;
+                        const command = new PutObjectCommand({
+                            Bucket: TIGRIS_BUCKET_NAME,
+                            Key: key,
+                            Body: Buffer.from(await audioBlob.arrayBuffer()),
+                            ContentType: "audio/mpeg",
+                            ACL: 'public-read',
+                        });
+                        await tigris.send(command);
+                        const audioUrl = `${process.env.TIGRIS_AWS_ENDPOINT_URL_S3}/${TIGRIS_BUCKET_NAME}/${key}`;
 
                         const offsetCaptions = captions.map((c) => ({
                             ...c,
@@ -120,7 +132,6 @@ export const generate = internalAction({
                             scriptId: script._id,
                             sceneNumber: scene.sceneNumber,
                             dialogueIndex: i,
-                            voiceStorageId: storageId,
                             voiceUrl: audioUrl,
                             audioDuration: duration,
                         });

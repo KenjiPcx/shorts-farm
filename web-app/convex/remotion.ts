@@ -28,8 +28,7 @@ export const renderVideo = internalAction({
             throw new Error("No background assets found. Please upload at least one.");
         }
         const randomBackgroundAsset = backgroundAssets[Math.floor(Math.random() * backgroundAssets.length)];
-        const backgroundUrl = await ctx.storage.getUrl(randomBackgroundAsset.storageId);
-        if (!backgroundUrl) throw new Error(`Could not get URL for asset ${randomBackgroundAsset.storageId}`);
+        const backgroundUrl = randomBackgroundAsset.url;
 
         // 2. Assemble the input props for the Remotion composition
         const inputProps: z.infer<typeof ShortsFarmSchema> = {

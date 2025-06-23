@@ -1,13 +1,41 @@
 import { mutation, internalQuery, query } from "./_generated/server";
 import { v } from "convex/values";
 import { vAsset } from "./schema";
+import { PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { tigris, TIGRIS_BUCKET_NAME } from "./lib/tigris";
+import { v4 as uuidv4 } from "uuid";
 
-// Generates a URL for uploading a file to Convex file storage.
-export const generateUploadUrl = mutation(async (ctx) => {
-    return await ctx.storage.generateUploadUrl();
+const S3_PRESIGNED_URL_EXPIRATION_SECONDS = 3600; // 1 hour
+
+// Generates a pre-signed URL for uploading a file to Tigris.
+export const generatePresignedUploadUrl = mutation({
+    args: {
+        fileName: v.string(),
+        fileType: v.string(),
+    },
+    handler: async (_ctx, args) => {
+        const fileExtension = args.fileName.split(".").pop();
+        const key = `asset-${uuidv4()}.${fileExtension}`;
+
+        const command = new PutObjectCommand({
+            Bucket: TIGRIS_BUCKET_NAME,
+            Key: key,
+            ContentType: args.fileType,
+            ACL: "public-read",
+        });
+
+        const presignedUrl = await getSignedUrl(tigris, command, {
+            expiresIn: S3_PRESIGNED_URL_EXPIRATION_SECONDS,
+        });
+
+        const publicUrl = `${process.env.TIGRIS_AWS_ENDPOINT_URL_S3}/${TIGRIS_BUCKET_NAME}/${key}`;
+
+        return { presignedUrl, publicUrl };
+    },
 });
 
-// Creates a new asset in the database after a file has been uploaded.
+// Creates a new asset in the database after a file has been uploaded to Tigris.
 export const createAsset = mutation({
     args: vAsset,
     handler: async (ctx, args) => {
@@ -27,38 +55,20 @@ export const get = internalQuery({
 export const getCharacterAssets = internalQuery({
     args: { characterId: v.id("characters") },
     handler: async (ctx, args) => {
-        const assets = await ctx.db
+        return await ctx.db
             .query("assets")
             .withIndex("by_characterId", (q) => q.eq("characterId", args.characterId))
             .collect();
-
-        return Promise.all(
-            assets.map(async (asset) => {
-                const url = await ctx.storage.getUrl(asset.storageId);
-                return { ...asset, url };
-            })
-        );
     }
 });
 
 export const getBackgroundAssets = query({
     args: {},
     handler: async (ctx) => {
-        const assets = await ctx.db
+        return await ctx.db
             .query("assets")
             .filter(q => q.eq(q.field("type"), "background-asset"))
             .collect();
-
-        const assetsWithUrls = await Promise.all(
-            assets.map(async (asset) => {
-                const url = await ctx.storage.getUrl(asset.storageId);
-                if (!url) {
-                    return null;
-                }
-                return { ...asset, url };
-            })
-        );
-        return assetsWithUrls.filter(a => a !== null);
     },
 });
 
@@ -71,25 +81,7 @@ export const getAssets = query({
         if (args.type) {
             query = query.filter(q => q.eq(q.field("type"), args.type));
         }
-        const assets = await query.collect();
-
-        const assetsWithUrls = await Promise.all(
-            assets.map(async (asset) => {
-                const url = await ctx.storage.getUrl(asset.storageId);
-                if (!url) {
-                    return null;
-                }
-                return { ...asset, url };
-            })
-        );
-        return assetsWithUrls.filter((a): a is Exclude<typeof a, null> => a !== null);
-    },
-});
-
-export const getAssetUrl = query({
-    args: { storageId: v.string() },
-    handler: async (ctx, args) => {
-        return await ctx.storage.getUrl(args.storageId as any);
+        return await query.collect();
     },
 });
 
@@ -121,7 +113,15 @@ export const deleteAsset = mutation({
     handler: async (ctx, args) => {
         const asset = await ctx.db.get(args.assetId);
         if (asset) {
-            await ctx.storage.delete(asset.storageId);
+            // Delete from Tigris
+            const key = asset.url.substring(asset.url.lastIndexOf('/') + 1);
+            const command = new DeleteObjectCommand({
+                Bucket: TIGRIS_BUCKET_NAME,
+                Key: key,
+            });
+            await tigris.send(command);
+
+            // Delete from Convex
             await ctx.db.delete(args.assetId);
         }
     }

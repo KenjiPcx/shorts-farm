@@ -16,9 +16,9 @@ export const Subtitles: React.FC<{
         const frame = useCurrentFrame();
 
         const { pages } = useMemo(() => createTikTokStyleCaptions({
-            captions: captions.map(c => ({
+            captions: captions.map((c, i) => ({
                 ...c,
-                text: ` ${c.text}`,
+                text: `${i === 0 ? "" : " "}${c.text}`,
             })), // We need to prefix each text with a space to show captions correctly
             combineTokensWithinMilliseconds: 1500, // Show 1-2 words at a time
         }), [captions]);
@@ -39,6 +39,7 @@ export const Subtitles: React.FC<{
                 style={{
                     wordWrap: 'break-word',
                     textAlign: 'center',
+                    whiteSpace: 'pre-wrap',
                 }}
             >
                 <div>

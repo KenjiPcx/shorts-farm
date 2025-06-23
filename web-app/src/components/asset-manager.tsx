@@ -60,11 +60,6 @@ export function AssetManager() {
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const assetUrl = useQuery(
-    api.assets.getAssetUrl,
-    selectedAsset ? { storageId: selectedAsset.storageId } : "skip"
-  );
-
   const characters = useQuery(api.characters.getAll);
 
   // Fetch all assets once
@@ -79,7 +74,7 @@ export function AssetManager() {
     return allAssets.filter(asset => asset && asset.type === filterAssetType);
   }, [allAssets, filterAssetType]);
 
-  const generateUploadUrl = useMutation(api.assets.generateUploadUrl);
+  const generatePresignedUploadUrl = useMutation(api.assets.generatePresignedUploadUrl);
   const createAsset = useMutation(api.assets.createAsset);
   const deleteAsset = useMutation(api.assets.deleteAsset);
 
@@ -138,24 +133,26 @@ export function AssetManager() {
 
     setIsUploading(true);
     try {
-      // Generate upload URL
-      const uploadUrl = await generateUploadUrl();
+      // 1. Generate a pre-signed URL for upload
+      const { presignedUrl, publicUrl } = await generatePresignedUploadUrl({
+        fileName: newAsset.file.name,
+        fileType: newAsset.file.type,
+      });
 
-      // Upload file
-      const response = await fetch(uploadUrl, {
-        method: "POST",
+      // 2. Upload the file to Tigris
+      const response = await fetch(presignedUrl, {
+        method: "PUT",
+        headers: { "Content-Type": newAsset.file.type },
         body: newAsset.file,
       });
 
       if (!response.ok) {
-        throw new Error("Failed to upload file");
+        throw new Error(`Failed to upload file to Tigris: ${await response.text()}`);
       }
 
-      const { storageId } = await response.json();
-
-      // Create asset record
+      // 3. Create asset record in Convex
       await createAsset({
-        storageId,
+        url: publicUrl,
         name: newAsset.name.trim(),
         description: newAsset.description.trim(),
         type: uploadAssetType,
@@ -167,9 +164,13 @@ export function AssetManager() {
 
       // Reset form
       setNewAsset({ name: "", description: "", file: null });
-      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     } catch (error) {
       console.error("Failed to upload asset:", error);
+      alert(`Failed to upload asset: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
       setIsUploading(false);
     }
   };
@@ -421,7 +422,7 @@ export function AssetManager() {
       <AssetPreviewModal
         isOpen={isPreviewOpen}
         onClose={handleClosePreview}
-        assetUrl={assetUrl || null}
+        assetUrl={selectedAsset?.url || null}
         assetType={selectedAsset?.type || ""}
       />
       <EditAssetModal

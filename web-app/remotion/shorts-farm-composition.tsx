@@ -92,20 +92,28 @@ export const ShortsFarmComposition: React.FC<z.infer<typeof ShortsFarmSchema>> =
     let cumulativeFrames = 0;
 
     const scenesWithTiming = script.scenes.map(scene => {
+        const sceneStartFrame = cumulativeFrames;
+
         const dialoguesWithTiming = scene.dialogues.map(dialogue => {
             const startFrame = cumulativeFrames;
             const durationSeconds = dialogue.audioDuration ?? (dialogue.line.length * 0.1);
             const durationInFrames = Math.ceil(durationSeconds * fps);
-
             cumulativeFrames = startFrame + durationInFrames + Math.ceil(DIALOGUE_BUFFER_SECONDS * fps);
-
             return {
                 ...dialogue,
                 startFrame,
                 durationInFrames,
             };
         });
-        return { ...scene, dialogues: dialoguesWithTiming };
+
+        const sceneDurationInFrames = cumulativeFrames - sceneStartFrame;
+
+        return {
+            ...scene,
+            dialogues: dialoguesWithTiming,
+            startFrame: sceneStartFrame,
+            durationInFrames: sceneDurationInFrames,
+        };
     });
 
     return (
@@ -116,23 +124,33 @@ export const ShortsFarmComposition: React.FC<z.infer<typeof ShortsFarmSchema>> =
 
             {scenesWithTiming.map((scene) => (
                 <React.Fragment key={scene.sceneNumber}>
+                    {scene.contentImageUrl && (
+                        <Sequence from={scene.startFrame} durationInFrames={scene.durationInFrames}>
+                            <AbsoluteFill style={{ alignItems: 'center', justifyContent: 'center' }}>
+                                <Img
+                                    src={scene.contentImageUrl}
+                                    style={{
+                                        width: '90%',
+                                        objectFit: 'contain',
+                                        zIndex: 0,
+                                        transform: 'translateY(-15%)',
+                                    }}
+                                />
+                            </AbsoluteFill>
+                        </Sequence>
+                    )}
                     {scene.dialogues.map((dialogue, i) => (
                         <Sequence key={`${scene.sceneNumber}-${i}`} from={dialogue.startFrame} durationInFrames={dialogue.durationInFrames}>
-                            {scene.contentImageUrl && i === 0 && ( // Show image at the start of the first dialogue of a scene
-                                <AbsoluteFill style={{ alignItems: 'center', justifyContent: 'center' }}>
-                                    <Img src={scene.contentImageUrl} style={{ height: '40%', zIndex: 0 }} />
-                                </AbsoluteFill>
-                            )}
                             <AbsoluteFill style={{ alignItems: 'center', justifyContent: 'center' }}>
                                 {dialogue.characterAssetUrl && (
                                     <Img
                                         src={dialogue.characterAssetUrl}
                                         style={{
-                                            height: '30%',
+                                            height: '25%',
                                             zIndex: 1,
                                             position: 'absolute',
-                                            bottom: '20%',
-                                            ...(characterPositions.get(dialogue.characterId) === 'left' ? { left: '15%' } : { right: '15%' }),
+                                            bottom: '10%',
+                                            ...(characterPositions.get(dialogue.characterId) === 'left' ? { left: '10%' } : { right: '10%' }),
                                         }}
                                     />
                                 )}
