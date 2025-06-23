@@ -137,7 +137,7 @@ export function CharacterManager() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="voiceId">Voice ID</Label>
-                    <Input id="voiceId" value={newCharacter.voiceId} onChange={(e) => setNewCharacter({ ...newCharacter, voiceId: e.target.value })} placeholder="Enter the voice ID for TTS" />
+                    <Input id="voiceId" value={newCharacter.voiceId} onChange={(e) => setNewCharacter({ ...newCharacter, voiceId: e.target.value })} placeholder="Enter the voice ID for TTS (Only Fish Audio AI is supported)" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="assets">Character Assets</Label>
