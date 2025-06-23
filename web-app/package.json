@@ -16,6 +16,7 @@
     "deploy": "node deploy.mjs"
   },
   "dependencies": {
+    "@auth/core": "^0.40.0",
     "@aws-sdk/client-s3": "^3.832.0",
     "@aws-sdk/s3-request-presigner": "^3.832.0",
     "@convex-dev/agent": "^0.1.8",

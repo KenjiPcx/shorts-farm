@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@auth/core':
+        specifier: ^0.40.0
+        version: 0.40.0
       '@aws-sdk/client-s3':
         specifier: ^3.832.0
         version: 3.832.0
@@ -19,7 +22,7 @@ importers:
         version: 0.1.8(ai@4.3.16(react@19.1.0)(zod@3.25.67))(convex-helpers@0.1.94(convex@1.24.8(react@19.1.0))(react@19.1.0)(typescript@5.7.3)(zod@3.25.67))(convex@1.24.8(react@19.1.0))(react@19.1.0)
       '@convex-dev/auth':
         specifier: ^0.0.81
-        version: 0.0.81(@auth/core@0.37.4)(convex@1.24.8(react@19.1.0))(react@19.1.0)
+        version: 0.0.81(@auth/core@0.40.0)(convex@1.24.8(react@19.1.0))(react@19.1.0)
       '@convex-dev/workflow':
         specifier: ^0.2.4
         version: 0.2.4(@convex-dev/workpool@0.2.11(convex-helpers@0.1.94(convex@1.24.8(react@19.1.0))(react@19.1.0)(typescript@5.7.3)(zod@3.25.67))(convex@1.24.8(react@19.1.0)))(convex-helpers@0.1.94(convex@1.24.8(react@19.1.0))(react@19.1.0)(typescript@5.7.3)(zod@3.25.67))(convex@1.24.8(react@19.1.0))
@@ -307,8 +310,8 @@ packages:
     resolution: {integrity: sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==}
     engines: {node: '>=6.0.0'}
 
-  '@auth/core@0.37.4':
-    resolution: {integrity: sha512-HOXJwXWXQRhbBDHlMU0K/6FT1v+wjtzdKhsNg0ZN7/gne6XPsIrjZ4daMcFnbq0Z/vsAbYBinQhhua0d77v7qw==}
+  '@auth/core@0.40.0':
+    resolution: {integrity: sha512-n53uJE0RH5SqZ7N1xZoMKekbHfQgjd0sAEyUbE+IYJnmuQkbvuZnXItCU7d+i7Fj8VGOgqvNO7Mw4YfBTlZeQw==}
     peerDependencies:
       '@simplewebauthn/browser': ^9.0.1
       '@simplewebauthn/server': ^9.0.2
@@ -4279,6 +4282,9 @@ packages:
   jose@5.10.0:
     resolution: {integrity: sha512-s+3Al/p9g32Iq+oqXxkW//7jk2Vig6FF1CFqzVXoTUXt2qz89YWbL+OwS17NFYEvxC35n0FKeGO2LGYSxeM2Gg==}
 
+  jose@6.0.11:
+    resolution: {integrity: sha512-QxG7EaliDARm1O1S8BGakqncGT9s25bKL1WSf6/oa17Tkqwi8D2ZNglqCF+DsYF88/rV66Q/Q2mFAy697E1DUg==}
+
   js-tiktoken@1.0.20:
     resolution: {integrity: sha512-Xlaqhhs8VfCd6Sh7a1cFkZHQbYTLCwVJJWiHVxBYzLPxW0XsoxBy1hitmjkdIjD3Aon5BXLHFwU5O8WUx6HH+A==}
 
@@ -5735,10 +5741,10 @@ snapshots:
       '@jridgewell/gen-mapping': 0.3.8
       '@jridgewell/trace-mapping': 0.3.25
 
-  '@auth/core@0.37.4':
+  '@auth/core@0.40.0':
     dependencies:
       '@panva/hkdf': 1.2.1
-      jose: 5.10.0
+      jose: 6.0.11
       oauth4webapi: 3.5.2
       preact: 10.24.3
       preact-render-to-string: 6.5.11(preact@10.24.3)
@@ -7015,9 +7021,9 @@ snapshots:
     optionalDependencies:
       react: 19.1.0
 
-  '@convex-dev/auth@0.0.81(@auth/core@0.37.4)(convex@1.24.8(react@19.1.0))(react@19.1.0)':
+  '@convex-dev/auth@0.0.81(@auth/core@0.40.0)(convex@1.24.8(react@19.1.0))(react@19.1.0)':
     dependencies:
-      '@auth/core': 0.37.4
+      '@auth/core': 0.40.0
       arctic: 1.9.2
       convex: 1.24.8(react@19.1.0)
       cookie: 1.0.2
@@ -10726,6 +10732,8 @@ snapshots:
   jiti@2.4.2: {}
 
   jose@5.10.0: {}
+
+  jose@6.0.11: {}
 
   js-tiktoken@1.0.20:
     dependencies:
