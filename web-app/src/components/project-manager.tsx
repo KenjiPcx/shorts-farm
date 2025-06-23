@@ -110,7 +110,7 @@ export function ProjectManager() {
                 <Input id="topic" value={topic} onChange={e => setTopic(e.target.value)} placeholder="e.g., 'The basics of AI'" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="urls">URLs (one per line)</Label>
+                <Label htmlFor="urls">URLs (one per line - the website you want to convert into a short)</Label>
                 <Textarea id="urls" value={urls} onChange={e => setUrls(e.target.value)} placeholder="e.g., https://docs.convex.dev/..." />
               </div>
               <Button type="submit" className="w-full" disabled={!selectedCast || (!topic && !urls)}>
