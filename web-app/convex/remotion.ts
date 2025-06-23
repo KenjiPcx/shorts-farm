@@ -78,7 +78,7 @@ export const getRenderProgressAction = action({
         renderId: v.string(),
         bucketName: v.string(),
     },
-    handler: async (ctx, args) => {
+    handler: async (_ctx, args) => {
         const { renderId, bucketName } = args;
 
         const progress = await getRenderProgress({

@@ -17,7 +17,7 @@ export const webSearch = createTool({
     args: z.object({
         query: z.string().describe("The search query."),
     }),
-    handler: async (ctx, args): Promise<string> => {
+    handler: async (_ctx, args): Promise<string> => {
         const searchResult = await tvly.search(args.query, { searchDepth: "advanced", maxResults: 10 });
         return JSON.stringify(searchResult.results);
     },
@@ -28,7 +28,7 @@ export const imageSearch = createTool({
     args: z.object({
         query: z.string().describe("The search query for images."),
     }),
-    handler: async (ctx, args): Promise<string> => {
+    handler: async (_ctx, args): Promise<string> => {
         const searchResult = await tvly.search(args.query, { searchDepth: "advanced", includeImages: true, maxResults: 10 });
         const images = searchResult.images?.map(i => ({ url: i.url }));
         return JSON.stringify(images);

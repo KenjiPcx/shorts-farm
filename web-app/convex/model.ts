@@ -1,7 +1,7 @@
 import { google } from "@ai-sdk/google";
 import { xai } from '@ai-sdk/xai';
-import { openai, createOpenAI } from '@ai-sdk/openai';
-import { anthropic, type AnthropicProviderOptions, createAnthropic } from '@ai-sdk/anthropic';
+import { openai } from '@ai-sdk/openai';
+import { type AnthropicProviderOptions } from '@ai-sdk/anthropic';
 
 export const model = google('gemini-2.5-pro-preview-05-06')
 export const imageModel = xai.image('grok-2-image')

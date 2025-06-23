@@ -1,4 +1,4 @@
-import { Easing, interpolate, useCurrentFrame } from 'remotion';
+import { interpolate } from 'remotion';
 import React from 'react';
 
 type SubtitleItem = {

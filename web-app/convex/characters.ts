@@ -1,7 +1,7 @@
 import { internalQuery, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { query } from "./_generated/server";
-import { Doc, Id } from "./_generated/dataModel";
+import { Doc } from "./_generated/dataModel";
 
 export const get = internalQuery({
     args: { id: v.id("characters") },

@@ -2,7 +2,7 @@ import { internalAction } from "./_generated/server";
 import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
 import { z } from "zod";
-import { Doc, Id } from "./_generated/dataModel";
+import { Doc } from "./_generated/dataModel";
 import { vLessonPlanScene } from "./schema";
 import dedent from "dedent";
 import { CharacterWithAssets } from "./characters";
@@ -48,7 +48,7 @@ export const write = internalAction({
     },
     handler: async (ctx, args): Promise<Doc<"scripts">["scenes"]> => {
         try {
-            const { projectId, lessonPlan, castId, userId } = args;
+            const { lessonPlan, castId } = args;
 
             const cast = await ctx.runQuery(internal.casts.getCast, { castId });
             if (!cast) throw new Error("Cast not found.");

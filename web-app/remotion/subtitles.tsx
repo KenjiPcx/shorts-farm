@@ -12,6 +12,8 @@ export const Subtitles: React.FC<{
 }> = ({
     captions,
     fps,
+    linesPerPage,
+    subtitlesLineHeight
 }) => {
         const frame = useCurrentFrame();
 
@@ -20,7 +22,7 @@ export const Subtitles: React.FC<{
                 ...c,
                 text: `${i === 0 ? "" : " "}${c.text}`,
             })),
-            combineTokensWithinMilliseconds: 1500, // Show 1-2 words at a time
+            combineTokensWithinMilliseconds: 1000,
         }), [captions]);
 
         const currentPage = pages.find((p) => {
@@ -33,6 +35,23 @@ export const Subtitles: React.FC<{
             return null;
         }
 
+        const maxCharsPerLine = 42;
+        const lines: (typeof currentPage.tokens)[] = [];
+        let currentLine: (typeof currentPage.tokens) = [];
+
+        currentPage.tokens.forEach((token) => {
+            const lineText = [...currentLine, token].map((t) => t.text).join('').trim();
+            if (lineText.length > maxCharsPerLine && currentLine.length > 0) {
+                lines.push(currentLine);
+                currentLine = [token];
+            } else {
+                currentLine.push(token);
+            }
+        });
+        if (currentLine.length > 0) {
+            lines.push(currentLine);
+        }
+
         return (
             <div
                 className="w-[80%] mx-auto flex justify-center items-center"
@@ -42,16 +61,21 @@ export const Subtitles: React.FC<{
                     whiteSpace: 'pre-wrap',
                 }}
             >
-                <div>
-                    {currentPage.tokens.map((token, i) => {
-                        const item = {
-                            id: i,
-                            start: token.fromMs / 1000 * fps,
-                            end: token.toMs / 1000 * fps,
-                            text: token.text.trim(),
-                        }
-                        return <Word key={item.id} frame={frame} item={item} />
-                    })}
+                <div style={{ lineHeight: `${subtitlesLineHeight}px` }}>
+                    {lines.slice(0, linesPerPage).map((line, i) => (
+                        <div key={i}>
+                            {line.map((token, j) => {
+                                const originalIndex = currentPage.tokens.findIndex(t => t === token);
+                                const item = {
+                                    id: originalIndex,
+                                    start: token.fromMs / 1000 * fps,
+                                    end: token.toMs / 1000 * fps,
+                                    text: token.text,
+                                }
+                                return <Word key={`${i}-${j}`} frame={frame} item={item} />
+                            })}
+                        </div>
+                    ))}
                 </div>
             </div>
         );

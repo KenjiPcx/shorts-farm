@@ -171,6 +171,8 @@ export const ShortsFarmComposition: React.FC<z.infer<typeof ShortsFarmSchema>> =
                                         transform: 'translateY(-15%)',
                                     }}
                                     delayRenderTimeoutInMilliseconds={120000}
+                                    maxRetries={3}
+                                    delayRenderRetries={3}
                                 />
                             </AbsoluteFill>
                         </Sequence>
@@ -181,6 +183,8 @@ export const ShortsFarmComposition: React.FC<z.infer<typeof ShortsFarmSchema>> =
                                 {dialogue.characterAssetUrl && (
                                     <Img
                                         src={dialogue.characterAssetUrl}
+                                        maxRetries={3}
+                                        delayRenderRetries={3}
                                         style={{
                                             height: '25%', // 50% smaller
                                             zIndex: 1,
@@ -191,7 +195,11 @@ export const ShortsFarmComposition: React.FC<z.infer<typeof ShortsFarmSchema>> =
                                         delayRenderTimeoutInMilliseconds={120000}
                                     />
                                 )}
-                                {dialogue.voiceUrl && <Audio src={dialogue.voiceUrl} delayRenderTimeoutInMilliseconds={120000} />}
+                                {dialogue.voiceUrl && <Audio 
+                                    src={dialogue.voiceUrl}
+                                    delayRenderTimeoutInMilliseconds={120000}
+                                    delayRenderRetries={3}
+                                />}
                             </AbsoluteFill>
                         </Sequence>
                     ))}

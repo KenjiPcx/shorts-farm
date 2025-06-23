@@ -1,9 +1,7 @@
 import { internalAction } from "./_generated/server";
 import { v } from "convex/values";
-import { internal, components, api } from "./_generated/api";
-import { Agent } from "@convex-dev/agent";
+import { internal, api } from "./_generated/api";
 import { z } from "zod";
-import { openai } from "@ai-sdk/openai";
 import { Doc } from "./_generated/dataModel";
 import dedent from "dedent";
 import { CharacterWithAssets } from "./characters";
@@ -13,7 +11,7 @@ import { model } from "./model";
 const LessonPlanSchema = z.object({
     lessonPlan: z.array(z.object({
         sceneNumber: z.number(),
-        contentImageUrl: z.string().optional().describe("A URL from the list of researched images to display."),
+        contentImageUrl: z.string().optional().describe("A URL from the website to display."),
         contentImageToGenerate: z.string().optional().describe("A prompt for an AI to generate a new image if no suitable one is found."),
         dialoguePlan: z.array(z.object({
             character: z.string().describe("The name of the character who is speaking."),
@@ -26,7 +24,7 @@ const systemPrompt = dedent`
     You are a creative director and storyboarder. Your task is to take research material (text and image URLs) and create a high-level plan for a short educational video.
 
     For each scene, you must:
-    1.  Decide on the visual content. You can either pick a URL from the provided 'imageUrls' list or write a prompt for an AI to generate a new image. Do not use both for the same scene. If the scene is just dialogue, you can omit both.
+    1.  Decide on the visual content. You can either pick a URL from the website or write a prompt for an AI to generate a new image. Prefer using the website images over generating new ones, we only generate new ones to fill in gaps where there are not many images available. Do not use both for the same scene. If the scene is just dialogue, you can omit both.
     2.  Plan the dialogue. For each turn in the conversation, describe who is talking ('character') and what they should talk about ('lineDescription'). This is a plan, not the final script, so focus on the key points the character needs to make.
 `
 
@@ -40,7 +38,7 @@ export const plan = internalAction({
     },
     handler: async (ctx, args): Promise<Doc<"projects">["plan"]> => {
         try {
-            const { rawText, imageUrls, castId, projectId, userId } = args;
+            const { rawText, castId } = args;
 
             const characters: CharacterWithAssets[] = await ctx.runQuery(internal.characters.getCharactersForCastWithAssets, { castId });
             if (!characters || characters.length === 0) throw new Error("Characters not found for cast.");

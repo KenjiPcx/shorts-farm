@@ -2,7 +2,6 @@
 
 import { internalAction } from "./_generated/server";
 import { v } from "convex/values";
-import { internal } from "./_generated/api";
 import { tavily } from "@tavily/core";
 
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY!;
@@ -17,7 +16,7 @@ export const gather = internalAction({
         topic: v.optional(v.string()),
         doMoreResearch: v.optional(v.boolean()),
     },
-    handler: async (ctx, args) => {
+    handler: async (_ctx, args) => {
         let results: Awaited<ReturnType<typeof tvly.extract>>["results"] = [];
         let sourceUrls: string[] = args.urls ?? [];
 

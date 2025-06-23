@@ -124,7 +124,7 @@ export const deleteAsset = mutation({
 
 export const deleteAssetFromTigris = action({
     args: { url: v.string() },
-    handler: async (ctx, args) => {
+    handler: async (_ctx, args) => {
         const key = args.url.substring(args.url.lastIndexOf('/') + 1);
         const command = new DeleteObjectCommand({
             Bucket: TIGRIS_BUCKET_NAME,
