@@ -15,6 +15,7 @@ import { BuyTokensModal } from "./components/buy-tokens-modal";
 import { Button } from "./components/ui/button";
 import { ThemeProvider } from "./components/theme-provider"
 import { ModeToggle } from "./components/mode-toggle";
+import { LandingPage } from "./components/landing-page";
 
 export default function App() {
   return (
@@ -26,7 +27,7 @@ export default function App() {
             <Dashboard />
           </Authenticated>
           <Unauthenticated>
-            <AuthForm />
+            <LandingPage />
           </Unauthenticated>
         </main>
       </div>
@@ -36,7 +37,7 @@ export default function App() {
 
 function Header() {
   const { isAuthenticated } = useConvexAuth();
-  const { signOut } = useAuthActions();
+  const { signOut, signIn } = useAuthActions();
   const currentUser = useQuery(api.auth.currentUser);
   const [isBuyTokensModalOpen, setIsBuyTokensModalOpen] = useState(false);
 
@@ -70,6 +71,9 @@ function Header() {
                 >
                   Sign out
                 </button>
+              )}
+              {!isAuthenticated && (
+                <Button onClick={() => void signIn("github")}>Sign in</Button>
               )}
             </div>
           </div>

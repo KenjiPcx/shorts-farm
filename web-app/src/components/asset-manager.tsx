@@ -81,6 +81,18 @@ export function AssetManager() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      const MAX_FILE_SIZE_MB = 200;
+      const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        alert(`File size exceeds the maximum limit of ${MAX_FILE_SIZE_MB}MB.`);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+        setNewAsset({ ...newAsset, file: null });
+        return;
+      }
+
       const config = assetTypeConfig[uploadAssetType];
       const extension = file.name.split(".").pop()?.toLowerCase();
       if (extension && config.extensions.includes(extension)) {

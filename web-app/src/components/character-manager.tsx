@@ -141,7 +141,22 @@ export function CharacterManager() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="assets">Character Assets</Label>
-                    <Input id="assets" type="file" multiple onChange={(e) => setNewCharacter({ ...newCharacter, assets: Array.from(e.target.files || []) })} />
+                    <Input id="assets" type="file" multiple onChange={(e) => {
+                      const files = Array.from(e.target.files || []);
+                      const MAX_FILE_SIZE_MB = 200;
+                      const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+                      const validFiles = files.filter(file => {
+                        if (file.size > MAX_FILE_SIZE_BYTES) {
+                          alert(`File ${file.name} exceeds the maximum limit of ${MAX_FILE_SIZE_MB}MB.`);
+                          return false;
+                        }
+                        return true;
+                      });
+                      if (files.length !== validFiles.length) {
+                        e.target.value = ""; // Clear the input if any file is invalid
+                      }
+                      setNewCharacter({ ...newCharacter, assets: validFiles })
+                    }} />
                   </div>
                   <div className="flex space-x-2">
                     <Button type="submit" disabled={!newCharacter.name.trim() || !newCharacter.description.trim()}>
@@ -325,7 +340,21 @@ function CharacterEditModal({ characterId, isOpen, onClose }: { characterId: Id<
               </div>
               <div className="space-y-2">
                 <Label htmlFor="asset-file-input">Asset File</Label>
-                <Input id="asset-file-input" type="file" onChange={(e) => e.target.files && setNewAssetFile(e.target.files[0])} required />
+                <Input id="asset-file-input" type="file" onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+
+                  const MAX_FILE_SIZE_MB = 200;
+                  const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+
+                  if (file.size > MAX_FILE_SIZE_BYTES) {
+                    alert(`File size exceeds the maximum limit of ${MAX_FILE_SIZE_MB}MB.`);
+                    e.target.value = "";
+                    setNewAssetFile(null);
+                  } else {
+                    setNewAssetFile(file);
+                  }
+                }} required />
               </div>
               <Button type="submit" disabled={isUploading}>
                 {isUploading ? "Uploading..." : "Upload Asset"}
