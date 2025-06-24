@@ -7,7 +7,6 @@ import {
 } from "convex/react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { Dashboard } from "./components/dashboard";
-import { AuthForm } from "./components/auth-form";
 import { useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { useState } from "react";

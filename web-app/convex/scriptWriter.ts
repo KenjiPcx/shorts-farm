@@ -71,7 +71,9 @@ export const write = internalAction({
                 ${JSON.stringify(lessonPlan)}
                 Please write the final, detailed script. The script should be about 60 seconds to complete.
                 The script should tie back to the cast and their characters's universe.
-                You should act as the characters, and write the script in their voice.`,
+                You should act as the characters, and write the script in their voice.
+                
+                Don't output in markdown or in any way that would affect the voice generation, like don't use asterisks or anything like that.`,
                 schema: FinalSceneSchema,
             });
 
