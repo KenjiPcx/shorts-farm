@@ -80,6 +80,9 @@ importers:
       '@remotion/lambda':
         specifier: 4.0.317
         version: 4.0.317(@remotion/bundler@4.0.317(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      '@remotion/media-parser':
+        specifier: ^4.0.319
+        version: 4.0.319
       '@remotion/media-utils':
         specifier: ^4.0.317
         version: 4.0.317(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -2500,6 +2503,9 @@ packages:
 
   '@remotion/media-parser@4.0.317':
     resolution: {integrity: sha512-nKpXV1yf4VeeTCezrC7mpHDMmKosbhTUEFUQyTthMt1+vxW775FxTURp7zZ9/TkhywwddaiLcmYqespwSUkz7w==}
+
+  '@remotion/media-parser@4.0.319':
+    resolution: {integrity: sha512-SizuhFlWrzY+cH4ftvn6TKJOKWt4UtI2byHqB1oHLSRvgYw8/UsxYJRfh5LnBQldCJWW8uDtabYx9/SbU+A1uw==}
 
   '@remotion/media-utils@4.0.317':
     resolution: {integrity: sha512-sd3c+BuV3dZPoiFHVD2AeX8fnJ5nj+PtAPkxXBQpRChyEgsgMeUBcJWN4wO8ttVqP7mJ3Mvvv2F2ddh171W5eA==}
@@ -8581,6 +8587,8 @@ snapshots:
   '@remotion/licensing@4.0.317': {}
 
   '@remotion/media-parser@4.0.317': {}
+
+  '@remotion/media-parser@4.0.319': {}
 
   '@remotion/media-utils@4.0.317(react-dom@19.1.0(react@19.1.0))(react@19.1.0)':
     dependencies:

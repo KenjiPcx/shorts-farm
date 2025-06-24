@@ -2619,8 +2619,8 @@ export const RemotionRoot: React.FC = () => {
             component={ShortsFarmComposition}
             durationInFrames={durationInFrames}
             fps={fps}
-            width={1080}
-            height={1920}
+            width={720}
+            height={1280}
             schema={ShortsFarmSchema}
             defaultProps={defaultProps}
             calculateMetadata={calculateShortsFarmMetadata}

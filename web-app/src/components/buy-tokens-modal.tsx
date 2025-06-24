@@ -14,9 +14,9 @@ import { toast } from "sonner";
 import { Spinner } from "./ui/spinner";
 
 const pricingTiers = [
-    { tokens: 10, price: 20, description: "10 video credits" },
-    { tokens: 25, price: 45, description: "~10% off" },
-    { tokens: 50, price: 80, description: "~20% off" },
+    { tokens: 10, price: 10, description: "10 video credits" },
+    { tokens: 25, price: 22.50, description: "~10% off" },
+    { tokens: 50, price: 40, description: "~20% off" },
 ];
 
 export function BuyTokensModal({

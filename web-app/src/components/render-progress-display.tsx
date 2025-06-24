@@ -1,17 +1,13 @@
 import { useRenderProgress } from "@/hooks/use-render-progress";
 import { Progress } from "./ui/progress";
-import { Doc } from "../../convex/_generated/dataModel";
-import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
 import { Button } from "./ui/button";
 import { ChevronDown } from "lucide-react";
+import { ProjectWithScript } from "../../convex/projects";
 
-const RenderProgressDisplay = ({ project }: { project: Doc<"projects"> }) => {
+const RenderProgressDisplay = ({ project }: { project: ProjectWithScript }) => {
     const renderProgress = useRenderProgress(project);
-    const video = useQuery(api.videos.getVideoByProjectId, project.status === 'done' ? { projectId: project._id } : "skip");
-
-    const finalVideoUrl = video?.finalUrl ?? (renderProgress.status === 'done' ? renderProgress.url : null);
+    const finalVideoUrl = project.videoUrl ?? (renderProgress.status === 'done' ? renderProgress.url : null);
 
     if (project.status === 'done' && finalVideoUrl) {
         return (
@@ -23,7 +19,7 @@ const RenderProgressDisplay = ({ project }: { project: Doc<"projects"> }) => {
                     </Button>
                 </CollapsibleTrigger>
                 <CollapsibleContent className="pt-2">
-                    <video src={finalVideoUrl} controls className="w-full rounded-lg" />
+                    <video src={finalVideoUrl} controls className="w-1/2 rounded-lg" />
                 </CollapsibleContent>
             </Collapsible>
         )

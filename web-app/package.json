@@ -40,6 +40,7 @@
     "@remotion/cli": "4.0.317",
     "@remotion/google-fonts": "4.0.317",
     "@remotion/lambda": "4.0.317",
+    "@remotion/media-parser": "^4.0.319",
     "@remotion/media-utils": "^4.0.317",
     "@remotion/openai-whisper": "4.0.317",
     "@remotion/paths": "4.0.317",

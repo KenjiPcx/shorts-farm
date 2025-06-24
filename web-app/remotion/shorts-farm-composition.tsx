@@ -1,7 +1,8 @@
-import { AbsoluteFill, useVideoConfig, Sequence, Video, Img, CalculateMetadataFunction, Audio } from 'remotion';
+import { AbsoluteFill, useVideoConfig, Sequence, Video, Img, CalculateMetadataFunction, Audio, OffthreadVideo } from 'remotion';
 import { z } from 'zod';
 import React from 'react';
 import { Subtitles } from './subtitles';
+import LoopableOffthreadVideo from './loopable-offthread-video';
 
 const DialogueTurnSchema = z.object({
     characterId: z.string(),
@@ -148,12 +149,11 @@ export const ShortsFarmComposition: React.FC<z.infer<typeof ShortsFarmSchema>> =
     return (
         <AbsoluteFill style={{ backgroundColor: 'black' }}>
             {backgroundUrl && (
-                <Video
-                    muted
+                <LoopableOffthreadVideo
                     loop
+                    muted
                     src={backgroundUrl}
                     style={{ position: 'absolute', width: '100%', height: '100%', objectFit: 'cover' }}
-                    delayRenderTimeoutInMilliseconds={120000}
                 />
             )}
 
@@ -168,9 +168,8 @@ export const ShortsFarmComposition: React.FC<z.infer<typeof ShortsFarmSchema>> =
                                         width: '90%',
                                         objectFit: 'contain',
                                         zIndex: 0,
-                                        transform: 'translateY(-15%)',
+                                        transform: 'translateY(-25%)',
                                     }}
-                                    delayRenderTimeoutInMilliseconds={120000}
                                     maxRetries={3}
                                     delayRenderRetries={3}
                                 />
@@ -189,15 +188,13 @@ export const ShortsFarmComposition: React.FC<z.infer<typeof ShortsFarmSchema>> =
                                             height: '25%', // 50% smaller
                                             zIndex: 1,
                                             position: 'absolute',
-                                            bottom: '20%',
+                                            bottom: '10%',
                                             ...(characterPositions.get(dialogue.characterId) === 'left' ? { left: '5%' } : { right: '5%' }),
                                         }}
-                                        delayRenderTimeoutInMilliseconds={120000}
                                     />
                                 )}
                                 {dialogue.voiceUrl && <Audio 
                                     src={dialogue.voiceUrl}
-                                    delayRenderTimeoutInMilliseconds={120000}
                                     delayRenderRetries={3}
                                 />}
                             </AbsoluteFill>
