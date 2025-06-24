@@ -56,14 +56,14 @@ function Header() {
             </div>
             <div className="flex items-center space-x-4">
               <ModeToggle />
-              {isAuthenticated && currentUser && (
+              {isAuthenticated && (
                 <span className="text-sm font-medium text-gray-900 dark:text-white">
-                  Tokens: {currentUser.tokens}
+                  Tokens: {currentUser?.tokens ?? 5}
                 </span>
               )}
-              {isAuthenticated && (
+              {/* {isAuthenticated && (
                 <Button variant="outline" onClick={() => setIsBuyTokensModalOpen(true)}>Buy Tokens</Button>
-              )}
+              )} */}
               {isAuthenticated && (
                 <button
                   onClick={() => void signOut()}

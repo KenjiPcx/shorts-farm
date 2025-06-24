@@ -129,7 +129,7 @@ export const startVideoCreation = mutation({
             // First project, give 1 free token and consume it.
             await ctx.db.insert("userProperties", {
                 userId,
-                tokens: 0, // 1 free token used up
+                tokens: 9, // 1 free token used up
             });
         }
 
