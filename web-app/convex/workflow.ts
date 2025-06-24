@@ -115,6 +115,24 @@ export const startVideoCreation = mutation({
         const userId = await getAuthUserId(ctx)
         if (!userId) throw new Error("User not found");
 
+        const userProperties = await ctx.db
+            .query("userProperties")
+            .withIndex("by_userId", (q) => q.eq("userId", userId))
+            .unique();
+
+        if (userProperties) {
+            if (userProperties.tokens <= 0) {
+                throw new Error("You have no tokens left to create a project.");
+            }
+            await ctx.db.patch(userProperties._id, { tokens: userProperties.tokens - 1 });
+        } else {
+            // First project, give 1 free token and consume it.
+            await ctx.db.insert("userProperties", {
+                userId,
+                tokens: 0, // 1 free token used up
+            });
+        }
+
         const { urls, topic, doMoreResearch, castId } = args.input;
         if (!topic && (!urls || urls.length === 0)) {
             throw new Error("Either topic or urls must be provided.");

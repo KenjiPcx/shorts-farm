@@ -13,6 +13,18 @@ export const currentUser = query({
     if (userId === null) {
       return null;
     }
-    return await ctx.db.get(userId);
+    const user = await ctx.db.get(userId);
+    if (!user) {
+      return null;
+    }
+    const userProperties = await ctx.db
+      .query("userProperties")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .unique();
+
+    return {
+      ...user,
+      tokens: userProperties?.tokens ?? 1,
+    };
   },
 });

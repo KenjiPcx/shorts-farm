@@ -41,7 +41,7 @@ export const vLessonPlanScene = v.object({
 
 export const vProject = v.object({
   topic: v.string(),
-  userId: v.string(),
+  userId: v.id("users"),
   castId: v.optional(v.id("casts")),
   urls: v.optional(v.array(v.string())),
   status: v.union(
@@ -75,6 +75,11 @@ export const vAsset = v.object({
 // The schema provides more precise TypeScript types.
 export default defineSchema({
   ...authTables,
+
+  userProperties: defineTable({
+    userId: v.id("users"),
+    tokens: v.number(),
+  }).index("by_userId", ["userId"]),
 
   // Library assets (characters, backgrounds, etc.)
   assets: defineTable({

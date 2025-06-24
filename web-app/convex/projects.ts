@@ -105,24 +105,6 @@ export const updateProjectVideo = mutation({
     },
 });
 
-export const createProject = mutation({
-    args: {
-        topic: v.string(),
-        castId: v.optional(v.id("casts")),
-    },
-    handler: async (ctx, args) => {
-        const userId = await getAuthUserId(ctx);
-        if (!userId) throw new Error("Not authenticated");
-
-        return await ctx.db.insert("projects", {
-            topic: args.topic,
-            userId,
-            castId: args.castId,
-            status: "gathering",
-        });
-    },
-});
-
 export const deleteProject = mutation({
     args: { projectId: v.id("projects") },
     handler: async (ctx, args) => {
@@ -147,6 +129,27 @@ export const getMyProjects = query({
         const projects = await ctx.db
             .query("projects")
             .withIndex("by_userId", (q) => q.eq("userId", userId))
+            .order("desc")
+            .collect();
+
+        return Promise.all(
+            projects.map(async (project) => {
+                const script = project.scriptId
+                    ? await ctx.db.get(project.scriptId)
+                    : null;
+                const video = project.videoId
+                    ? await ctx.db.get(project.videoId)
+                    : null;
+                return { ...project, script, videoUrl: video?.finalUrl ?? null };
+            })
+        );
+    },
+});
+
+export const getAllProjects = query({
+    handler: async (ctx): Promise<ProjectWithScript[]> => {
+        const projects = await ctx.db
+            .query("projects")
             .order("desc")
             .collect();
 

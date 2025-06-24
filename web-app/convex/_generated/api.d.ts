@@ -24,6 +24,7 @@ import type * as scriptWriter from "../scriptWriter.js";
 import type * as scripts from "../scripts.js";
 import type * as seed from "../seed.js";
 import type * as tools from "../tools.js";
+import type * as users from "../users.js";
 import type * as videos from "../videos.js";
 import type * as voiceGenerator from "../voiceGenerator.js";
 import type * as workflow from "../workflow.js";
@@ -59,6 +60,7 @@ declare const fullApi: ApiFromModules<{
   scripts: typeof scripts;
   seed: typeof seed;
   tools: typeof tools;
+  users: typeof users;
   videos: typeof videos;
   voiceGenerator: typeof voiceGenerator;
   workflow: typeof workflow;
