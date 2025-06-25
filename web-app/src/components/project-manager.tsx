@@ -39,6 +39,7 @@ const statusProgress: Record<string, number> = {
 type ProjectWithVideoUrl = NonNullable<ReturnType<typeof useQuery<typeof api.projects.getMyProjects>>>[number];
 
 export function ProjectManager() {
+  const currentUser = useQuery(api.auth.currentUser);
   const myProjects = useQuery(api.projects.getMyProjects);
   const allProjects = useQuery(api.projects.getAllProjects);
   const casts = useQuery(api.casts.getCasts);
@@ -275,7 +276,7 @@ export function ProjectManager() {
                     )}
                   </CardContent>
                 </div>
-                <div className="absolute top-1/2 -translate-y-1/2 right-0 translate-x-1/2 flex flex-col space-y-2 p-2 border bg-white dark:bg-gray-900 dark:border-gray-800 rounded-lg shadow-lg">
+                {currentUser?._id === project.userId && <div className="absolute top-1/2 -translate-y-1/2 right-0 translate-x-1/2 flex flex-col space-y-2 p-2 border bg-white dark:bg-gray-900 dark:border-gray-800 rounded-lg shadow-lg">
                   <TooltipProvider>
                     {(project.status === 'rendering' || project.status === 'done' || project.status === 'error') && project.script && (
                       <Tooltip>
@@ -324,7 +325,7 @@ export function ProjectManager() {
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
-                </div>
+                </div>}
               </div>
             </Card>
           ))}
