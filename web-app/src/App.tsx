@@ -15,28 +15,31 @@ import { Button } from "./components/ui/button";
 import { ThemeProvider } from "./components/theme-provider"
 import { ModeToggle } from "./components/mode-toggle";
 import { LandingPage } from "./components/landing-page";
+import { SignInModal } from "./components/sign-in-modal";
 
 export default function App() {
+  const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
   return (
     <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <Header />
+        <Header setIsSignInModalOpen={setIsSignInModalOpen} />
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <Authenticated>
             <Dashboard />
           </Authenticated>
           <Unauthenticated>
-            <LandingPage />
+            <LandingPage onGetStarted={() => setIsSignInModalOpen(true)} />
           </Unauthenticated>
         </main>
       </div>
+      <SignInModal isOpen={isSignInModalOpen} onClose={() => setIsSignInModalOpen(false)} />
     </ThemeProvider>
   );
 }
 
-function Header() {
+function Header({ setIsSignInModalOpen }: { setIsSignInModalOpen: (isOpen: boolean) => void }) {
   const { isAuthenticated } = useConvexAuth();
-  const { signOut, signIn } = useAuthActions();
+  const { signOut } = useAuthActions();
   const currentUser = useQuery(api.auth.currentUser);
   const [isBuyTokensModalOpen, setIsBuyTokensModalOpen] = useState(false);
 
@@ -57,7 +60,7 @@ function Header() {
               <ModeToggle />
               {isAuthenticated && (
                 <span className="text-sm font-medium text-gray-900 dark:text-white">
-                  Tokens: {currentUser?.tokens ?? 5}
+                  Tokens: {currentUser?.tokens ?? 10}
                 </span>
               )}
               {/* {isAuthenticated && (
@@ -72,7 +75,7 @@ function Header() {
                 </button>
               )}
               {!isAuthenticated && (
-                <Button onClick={() => void signIn("github")}>Sign in</Button>
+                <Button onClick={() => setIsSignInModalOpen(true)}>Sign in</Button>
               )}
             </div>
           </div>

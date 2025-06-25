@@ -1,11 +1,8 @@
 import { Button } from "./ui/button";
 import { ArrowRight, BrainCircuit, Clapperboard, Zap } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { useAuthActions } from "@convex-dev/auth/react";
 
-export function LandingPage() {
-    const { signIn } = useAuthActions();
-
+export function LandingPage({ onGetStarted }: { onGetStarted: () => void }) {
     return (
         <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-gray-900">
             <main className="flex-1">
@@ -23,7 +20,7 @@ export function LandingPage() {
                                     </p>
                                 </div>
                                 <div className="flex flex-col gap-2 min-[400px]:flex-row">
-                                    <Button size="lg" onClick={() => void signIn("github")}>
+                                    <Button size="lg" onClick={onGetStarted}>
                                         Create Your First Video (Free)
                                         <ArrowRight className="ml-2 h-5 w-5" />
                                     </Button>

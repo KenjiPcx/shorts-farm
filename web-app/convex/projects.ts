@@ -5,7 +5,7 @@ import { mutation } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { vLessonPlanScene } from "./schema";
 
-export type ProjectWithScript = Doc<"projects"> & { script?: Doc<"scripts"> | null, videoUrl?: string | null };
+export type ProjectWithScript = Doc<"projects"> & { script?: Doc<"scripts"> | null, videoUrl?: string | null, user?: string | null };
 
 export const get = internalQuery({
     args: {
@@ -140,7 +140,8 @@ export const getMyProjects = query({
                 const video = project.videoId
                     ? await ctx.db.get(project.videoId)
                     : null;
-                return { ...project, script, videoUrl: video?.finalUrl ?? null };
+                const user = project.userId ? await ctx.db.get(project.userId) : null;
+                return { ...project, script, videoUrl: video?.finalUrl ?? null, user: user?.name ?? null };
             })
         );
     },
@@ -161,7 +162,8 @@ export const getAllProjects = query({
                 const video = project.videoId
                     ? await ctx.db.get(project.videoId)
                     : null;
-                return { ...project, script, videoUrl: video?.finalUrl ?? null };
+                const user = project.userId ? await ctx.db.get(project.userId) : null;
+                return { ...project, script, videoUrl: video?.finalUrl ?? null, user: user?.name ?? null };
             })
         );
     },

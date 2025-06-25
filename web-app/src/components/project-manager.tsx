@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown, PlayIcon, RotateCcwIcon, RefreshCwIcon, Clapperboard, Mic, ListChecks, FileText } from 'lucide-react';
+import { PlayIcon, RotateCcwIcon, RefreshCwIcon, Clapperboard, Mic, ListChecks, FileText } from 'lucide-react';
 import { VideoPreviewModal } from './video-preview-modal';
 import RenderProgressDisplay from './render-progress-display';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -127,10 +127,26 @@ export function ProjectManager() {
       <div className="lg:col-span-2">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-bold">Your Projects</h2>
-          <div className="flex items-center space-x-2">
-            <Button variant={projectFilter === 'mine' ? 'secondary' : 'ghost'} onClick={() => setProjectFilter('mine')}>My Projects</Button>
-            <Button variant={projectFilter === 'all' ? 'secondary' : 'ghost'} onClick={() => setProjectFilter('all')}>All Projects</Button>
-          </div>
+          <TooltipProvider>
+            <div className="flex items-center space-x-2">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant={projectFilter === 'mine' ? 'secondary' : 'ghost'} onClick={() => setProjectFilter('mine')}>My Projects</Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>View only your projects</p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant={projectFilter === 'all' ? 'secondary' : 'ghost'} onClick={() => setProjectFilter('all')}>All Projects</Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>See what others are generating to get inspiration</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          </TooltipProvider>
         </div>
         <div className="space-y-4">
           {projects?.map(project => (
@@ -145,8 +161,8 @@ export function ProjectManager() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-sm text-muted-foreground space-y-2 mb-4">
-                      {project.userId && (
-                        <p><strong>Owner ID:</strong> {project.userId}</p>
+                      {project.user && (
+                        <p><strong>Owner:</strong> {project.user}</p>
                       )}
                       {project.castId && (
                         <p><strong>Cast:</strong> {getCastName(project.castId)}</p>

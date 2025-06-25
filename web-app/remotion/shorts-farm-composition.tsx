@@ -1,4 +1,4 @@
-import { AbsoluteFill, useVideoConfig, Sequence, Video, Img, CalculateMetadataFunction, Audio, OffthreadVideo } from 'remotion';
+import { AbsoluteFill, useVideoConfig, Sequence, Img, CalculateMetadataFunction, Audio } from 'remotion';
 import { z } from 'zod';
 import React from 'react';
 import { Subtitles } from './subtitles';
