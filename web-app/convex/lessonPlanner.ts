@@ -11,8 +11,8 @@ import { model } from "./model";
 const LessonPlanSchema = z.object({
     lessonPlan: z.array(z.object({
         sceneNumber: z.number(),
-        contentImageUrl: z.string().optional().describe("A URL from the website to display."),
-        contentImageToGenerate: z.string().optional().describe("A prompt for an AI to generate a new image if no suitable one is found."),
+        contentImageUrl: z.string().optional().describe("An image URL from the website to display, url must end with a valid image extension."),
+        // contentImageToGenerate: z.string().optional().describe("A prompt for an AI to generate a new image if no suitable one is found."),
         dialoguePlan: z.array(z.object({
             character: z.string().describe("The name of the character who is speaking."),
             lineDescription: z.string().describe("A high-level description of what the character should say."),
@@ -24,7 +24,7 @@ const systemPrompt = dedent`
     You are a creative director and storyboarder. Your task is to take research material (text and image URLs) and create a high-level plan for a short educational video.
 
     For each scene, you must:
-    1.  Decide on the visual content. You can either pick a URL from the website or write a prompt for an AI to generate a new image. Prefer using the website images over generating new ones, we only generate new ones to fill in gaps where there are not many images available. Do not use both for the same scene. If the scene is just dialogue, you can omit both.
+    1.  Decide on the visual content. You can pick an image URL from the website. If the scene is just dialogue, you can omit it.
     2.  Plan the dialogue. For each turn in the conversation, describe who is talking ('character') and what they should talk about ('lineDescription'). This is a plan, not the final script, so focus on the key points the character needs to make.
 `
 
@@ -38,7 +38,8 @@ export const plan = internalAction({
     },
     handler: async (ctx, args): Promise<Doc<"projects">["plan"]> => {
         try {
-            const { rawText, castId } = args;
+            const { rawText, castId, imageUrls } = args;
+            console.log("Image URLs:", imageUrls);
 
             const characters: CharacterWithAssets[] = await ctx.runQuery(internal.characters.getCharactersForCastWithAssets, { castId });
             if (!characters || characters.length === 0) throw new Error("Characters not found for cast.");
@@ -53,9 +54,13 @@ export const plan = internalAction({
                 Here is the research material:
                 Text:
                 ${rawText}
-                Use the images within the research material, they are markdown images, but should have enough context descriptions accompanying them.
+                Available images:
+                ${imageUrls.join("\n")}
+                Use the images within the research material, they are image urls in the markdown text, but should have enough context descriptions accompanying them.
                 The characters available are: ${characterNames.join(", ")}
                 Please create a lesson plan based on the text. The lesson plan should tie back to the cast and their characters's universe and should take about 60 seconds to complete.
+
+                Prioritize putting in images from the website, like we should try to display as many of them as possible, design the dialog around images would be ideal unless the images are too irrelevant to the topic. The alt text should describe the image in detail.
             `,
                 schema: LessonPlanSchema,
             });
@@ -74,7 +79,7 @@ export const plan = internalAction({
                 return {
                     sceneNumber: scene.sceneNumber,
                     contentImageUrl: scene.contentImageUrl,
-                    contentImageToGenerate: scene.contentImageToGenerate,
+                    // contentImageToGenerate: scene.contentImageToGenerate,
                     dialoguePlan: dialoguePlan,
                 };
             });

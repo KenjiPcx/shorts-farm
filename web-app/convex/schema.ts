@@ -59,6 +59,7 @@ export const vProject = v.object({
   renderId: v.optional(v.string()),
   bucketName: v.optional(v.string()),
   statusMessage: v.optional(v.string()),
+  workflowId: v.optional(v.string()),
 })
 
 export const vAsset = v.object({

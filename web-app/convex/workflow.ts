@@ -1,4 +1,4 @@
-import { mutation } from "./_generated/server";
+import { action, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
 import { WorkflowManager, WorkflowId } from "@convex-dev/workflow";
@@ -95,6 +95,10 @@ export const rerunVideoCreation = mutation({
                 userId: project.userId,
             }
         );
+
+        // Store the workflowId in the project
+        await ctx.db.patch(project._id, { workflowId });
+
         return { workflowId };
     }
 });
@@ -160,6 +164,10 @@ export const startVideoCreation = mutation({
                 userId: userId,
             }
         );
+
+        // Store the workflowId in the project
+        await ctx.db.patch(projectId, { workflowId });
+
         return { projectId, workflowId };
     },
 });
@@ -199,6 +207,10 @@ export const rerunVideoCreationFromScratch = mutation({
                 userId: project.userId,
             }
         );
+
+        // Store the workflowId in the project
+        await ctx.db.patch(project._id, { workflowId });
+
         return { workflowId };
     }
 });
@@ -221,5 +233,12 @@ export const rerenderVideo = mutation({
         await ctx.scheduler.runAfter(0, internal.remotion.renderVideo, {
             projectId: args.projectId,
         });
+    }
+});
+
+export const stopWorkflow = action({
+    args: { workflowId: v.string() },
+    handler: async (ctx, args) => {
+        await workflow.cancel(ctx, args.workflowId as WorkflowId);
     }
 });

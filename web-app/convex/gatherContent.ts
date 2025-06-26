@@ -42,11 +42,28 @@ export const gather = internalAction({
             results = extractResult.results;
         }
 
+        const imageRegex = /!\[(.*?)\]\((.*?)\)/g;
+        const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp'];
+
+        const extractedImages = results.flatMap(r => {
+            if (!r.rawContent) return [];
+            const matches = [...r.rawContent.matchAll(imageRegex)];
+            return matches.map(match => ({
+                description: match[1],
+                url: match[2]
+            })).filter(img => imageExtensions.some(ext => img.url.toLowerCase().endsWith(ext)));
+        });
+
+        console.log("Extracted image descriptions:", extractedImages.map(img => img.description).filter(d => d.trim() !== ''));
+
         const allText = results.map(r => r.rawContent).join("\n\n---\n\n");
-        const allImageUrls = results.flatMap(r => r.images ?? []);
+        const allImageUrls = [...new Set([
+            // ...results.flatMap(r => r.images ?? []),
+            ...extractedImages.map(img => `![${img.description}](${img.url})`)
+        ])];
 
         return {
-            rawText: allText.substring(0, 20000), // Truncate to avoid large doc size
+            rawText: allText,
             imageUrls: allImageUrls,
         };
     },

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useQuery, useMutation } from 'convex/react';
+import { useQuery, useMutation, useAction } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { PlayIcon, RotateCcwIcon, RefreshCwIcon, Clapperboard, Mic, ListChecks, FileText } from 'lucide-react';
+import { PlayIcon, RotateCcwIcon, RefreshCwIcon, Clapperboard, Mic, ListChecks, FileText, StopCircle } from 'lucide-react';
 import { VideoPreviewModal } from './video-preview-modal';
 import RenderProgressDisplay from './render-progress-display';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -48,6 +48,7 @@ export function ProjectManager() {
   const rerunVideoCreation = useMutation(api.workflow.rerunVideoCreation);
   const rerunVideoCreationFromScratch = useMutation(api.workflow.rerunVideoCreationFromScratch);
   const rerenderVideo = useMutation(api.workflow.rerenderVideo);
+  const stopWorkflow = useAction(api.workflow.stopWorkflow);
   const [topic, setTopic] = useState('');
   const [urls, setUrls] = useState('');
   const [selectedCast, setSelectedCast] = useState<Id<"casts"> | null>(null);
@@ -196,6 +197,7 @@ export function ProjectManager() {
                               {project.plan.map(scene => (
                                 <div key={scene.sceneNumber} className="p-2 border-l-2">
                                   <p className='font-bold'>Scene {scene.sceneNumber}</p>
+                                  {scene.contentImageUrl ? <img src={scene.contentImageUrl} alt="Scene Image" className="w-1/2" /> : ''}
                                   {scene.dialoguePlan.map((dialogue, i) => (
                                     <p key={i}><strong>{getCharacterName(dialogue.characterId)}:</strong> {dialogue.lineDescription}</p>
                                   ))}
@@ -324,6 +326,18 @@ export function ProjectManager() {
                         <p>Rerun from scratch</p>
                       </TooltipContent>
                     </Tooltip>
+                    {project.workflowId && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="ghost" size="icon" onClick={() => stopWorkflow({ workflowId: project.workflowId! })}>
+                            <StopCircle className="h-5 w-5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Stop workflow</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
                   </TooltipProvider>
                 </div>}
               </div>
