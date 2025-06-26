@@ -236,9 +236,10 @@ export const rerenderVideo = mutation({
     }
 });
 
-export const stopWorkflow = action({
-    args: { workflowId: v.string() },
+export const stopWorkflow = mutation({
+    args: { workflowId: v.string(), projectId: v.id("projects") },
     handler: async (ctx, args) => {
         await workflow.cancel(ctx, args.workflowId as WorkflowId);
+        await ctx.db.patch(args.projectId, { status: "error", statusMessage: "Workflow cancelled" });
     }
 });

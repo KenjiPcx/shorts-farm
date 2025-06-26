@@ -11,7 +11,7 @@ import { model } from "./model";
 
 const FinalDialogueTurnSchema = z.object({
     character: z.string().describe("The name of the character speaking."),
-    line: z.string().describe("The character's final, polished line."),
+    line: z.string().describe("The character's final, polished line. Do not use any markdown formatting, like asterisks or anything like that."),
     expression: z.string().describe("The character's expression (e.g., 'happy', 'sad', 'thinking'). This must match one of the available assets for the character."),
     characterAssetUrl: z.string().describe("The public URL of the character's asset to use for the expression. This must be one of the URLs from the character's asset list."),
 });
@@ -73,6 +73,7 @@ export const write = internalAction({
                 The script should tie back to the cast and their characters's universe.
                 You should act as the characters, and write the script in their voice.
                 
+                For your line items, do not use any markdown formatting, like asterisks or anything like that.
                 Don't output in markdown or in any way that would affect the voice generation, like don't use asterisks or anything like that.`,
                 schema: FinalSceneSchema,
             });

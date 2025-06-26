@@ -57,6 +57,7 @@ export const plan = internalAction({
                 Available images:
                 ${imageUrls.join("\n")}
                 Use the images within the research material, they are image urls in the markdown text, but should have enough context descriptions accompanying them.
+                If its articles, do not use the logo of the website, unless the logo is the company or the product we are promoting, we want to be careful with who we credit. Double check that the image urls are valid.
                 The characters available are: ${characterNames.join(", ")}
                 Please create a lesson plan based on the text. The lesson plan should tie back to the cast and their characters's universe and should take about 60 seconds to complete.
 
