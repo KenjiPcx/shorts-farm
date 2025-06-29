@@ -11,6 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import MultipleSelector, { type Option } from "@/components/ui/multi-select";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type Account = NonNullable<ReturnType<typeof useQuery<typeof api.accounts.getMyAccounts>>>[number];
 type Cast = NonNullable<ReturnType<typeof useQuery<typeof api.casts.getCasts>>>[number];
@@ -63,7 +65,11 @@ export function AutomationManager() {
                 </div>
                 <div className="lg:col-span-2">
                     {selectedAccount ? (
-                        <TopicQueue account={selectedAccount} />
+                        selectedAccount.dailyAction ? (
+                            <DailyActionDisplay account={selectedAccount} />
+                        ) : (
+                            <TopicQueue account={selectedAccount} />
+                        )
                     ) : (
                         <Card className="flex items-center justify-center h-full">
                             <CardContent className="text-center">
@@ -253,12 +259,18 @@ function TopicQueue({ account }: { account: Account }) {
     const addTopic = useMutation(api.accounts.addTopic);
     const removeTopic = useMutation(api.accounts.removeTopic);
     const [newTopic, setNewTopic] = useState("");
+    const [newUrl, setNewUrl] = useState("");
 
     const handleAddTopic = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newTopic.trim()) return;
-        await addTopic({ accountId: account._id, topic: newTopic.trim() });
+        await addTopic({
+            accountId: account._id,
+            topic: newTopic.trim(),
+            url: newUrl.trim() ? newUrl.trim() : undefined,
+        });
         setNewTopic("");
+        setNewUrl("");
     }
 
     return (
@@ -269,19 +281,27 @@ function TopicQueue({ account }: { account: Account }) {
             </CardHeader>
             <CardContent>
                 <div className="space-y-2 mb-4">
-                    {account.topicQueue?.map((topic: string, index: number) => (
+                    {account.topicQueue?.map((item, index) => (
                         <div key={index} className="flex items-center justify-between p-2 border rounded-lg">
-                            <p>{topic}</p>
-                            <Button variant="ghost" size="icon" onClick={() => removeTopic({ accountId: account._id, topic })}>
+                            <div>
+                                <p className="font-medium">{item.topic}</p>
+                                {item.url && (
+                                    <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-500 hover:underline truncate block">
+                                        {item.url}
+                                    </a>
+                                )}
+                            </div>
+                            <Button variant="ghost" size="icon" onClick={() => removeTopic({ accountId: account._id, index })}>
                                 <Trash2 className="h-4 w-4" />
                             </Button>
                         </div>
                     ))}
                     {(account.topicQueue?.length ?? 0) === 0 && <p className="text-center text-muted-foreground py-4">This queue is empty. <br />To start automations, you need to provide the first topic for <br />the AI to learn what kind of content to create.</p>}
                 </div>
-                <form onSubmit={handleAddTopic} className="flex space-x-2">
-                    <Input value={newTopic} onChange={e => setNewTopic(e.target.value)} placeholder="Add a new topic idea..." />
-                    <Button type="submit">Add</Button>
+                <form onSubmit={handleAddTopic} className="space-y-2">
+                    <Input value={newTopic} onChange={e => setNewTopic(e.target.value)} placeholder="Add a new topic idea..." required />
+                    <Input value={newUrl} onChange={e => setNewUrl(e.target.value)} placeholder="Optional: URL for research" />
+                    <Button type="submit" className="w-full">Add Topic</Button>
                 </form>
             </CardContent>
         </Card>
@@ -294,6 +314,9 @@ function EditAccountModal({ account, casts }: { account: Account, casts: Cast[] 
     const [creativeBrief, setCreativeBrief] = useState(account.creativeBrief || "");
     const [postSchedule, setPostSchedule] = useState(account.postSchedule || "");
     const [castWeights, setCastWeights] = useState<{ castId: string, weight: number }[]>(account.castWeights?.map(cw => ({ ...cw, castId: cw.castId as Id<"casts"> })) || []);
+    const [automationType, setAutomationType] = useState(account.dailyAction ? "dailyAction" : "topicQueue");
+    const [dailyAction, setDailyAction] = useState(account.dailyAction || "");
+    const [dailyActionSearchQuery, setDailyActionSearchQuery] = useState(account.dailyActionSearchQuery || "");
     const updateAccount = useMutation(api.accounts.updateAccount);
     const deleteAccount = useMutation(api.accounts.deleteAccount);
     const generateInstagramAuthUrl = useAction(api.instagramAuth.generateInstagramAuthUrl);
@@ -318,7 +341,9 @@ function EditAccountModal({ account, casts }: { account: Account, casts: Cast[] 
             bio,
             creativeBrief,
             postSchedule,
-            castWeights: castWeights.map(cw => ({ ...cw, castId: cw.castId as Id<"casts"> }))
+            castWeights: castWeights.map(cw => ({ ...cw, castId: cw.castId as Id<"casts"> })),
+            dailyAction: automationType === "dailyAction" ? dailyAction : undefined,
+            dailyActionSearchQuery: automationType === "dailyAction" ? dailyActionSearchQuery : undefined,
         });
         setIsOpen(false);
     }
@@ -367,88 +392,118 @@ function EditAccountModal({ account, casts }: { account: Account, casts: Cast[] 
                     <DialogTitle>Edit {account.displayName}</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4 py-4">
-                    <div>
-                        <Label htmlFor="displayName">Display Name</Label>
-                        <Input id="displayName" value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="e.g., AI Peter" required />
-                    </div>
+                    <Tabs defaultValue="general">
+                        <TabsList className="grid w-full grid-cols-4">
+                            <TabsTrigger value="general">General</TabsTrigger>
+                            <TabsTrigger value="automation">Automation</TabsTrigger>
+                            <TabsTrigger value="casting">Casting</TabsTrigger>
+                            <TabsTrigger value="connections">Connections</TabsTrigger>
+                        </TabsList>
 
-                    <div>
-                        <Label htmlFor="bio">Account Bio</Label>
-                        <Textarea id="bio" value={bio} onChange={e => setBio(e.target.value)} placeholder="A short description of the account's persona, content, and target audience." />
-                    </div>
-
-                    <div>
-                        <Label htmlFor="creativeBrief">Creative Brief</Label>
-                        <Textarea id="creativeBrief" value={creativeBrief} onChange={e => setCreativeBrief(e.target.value)} placeholder="A creative brief for the next batch of videos. e.g., 'Focus on historical what-if scenarios.'" />
-                    </div>
-
-                    <div>
-                        <Label htmlFor="postSchedule">Daily Post Time (HH:MM in UTC)</Label>
-                        <Input id="postSchedule" type="time" value={postSchedule} onChange={e => setPostSchedule(e.target.value)} />
-                    </div>
-
-                    <div>
-                        <Label>Instagram Connection</Label>
-                        <div className="flex items-center justify-between p-3 border rounded-lg">
-                            <div className="flex items-center gap-2">
-                                <Instagram className="h-4 w-4" />
-                                <span className="text-sm">
-                                    {isInstagramConnected ? (
-                                        <span className="text-green-600">Connected as @{instagramPlatform?.credentials?.username}</span>
-                                    ) : (
-                                        <span className="text-orange-600">Not connected</span>
-                                    )}
-                                </span>
+                        <TabsContent value="general" className="space-y-4 py-4">
+                            <div>
+                                <Label htmlFor="displayName">Display Name</Label>
+                                <Input id="displayName" value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="e.g., AI Peter" required />
                             </div>
-                            {!isInstagramConnected && (
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={handleConnectInstagram}
-                                    disabled={isConnecting}
-                                >
-                                    {isConnecting ? 'Connecting...' : 'Connect'}
-                                    <ExternalLink className="h-3 w-3 ml-1" />
-                                </Button>
-                            )}
-                        </div>
-                    </div>
+                            <div>
+                                <Label htmlFor="bio">Account Bio</Label>
+                                <Textarea id="bio" value={bio} onChange={e => setBio(e.target.value)} placeholder="A short description of the account's persona, content, and target audience." />
+                            </div>
+                            <div>
+                                <Label htmlFor="creativeBrief">Creative Brief</Label>
+                                <Textarea id="creativeBrief" value={creativeBrief} onChange={e => setCreativeBrief(e.target.value)} placeholder="A creative brief for the next batch of videos. e.g., 'Focus on historical what-if scenarios.'" />
+                            </div>
+                        </TabsContent>
 
-                    <div>
-                        <Label>Available Casts</Label>
-                        <MultipleSelector
-                            value={castWeights.map(cw => ({ value: cw.castId, label: casts.find((c: Cast) => c._id === cw.castId)?.name || "Unknown" }))}
-                            onChange={handleSelectionChange}
-                            options={casts.map((cast: Cast) => ({ value: cast._id, label: cast.name }))}
-                            placeholder="Select cast members..."
-                            className="w-full"
-                        />
-                    </div>
-
-                    {castWeights.length > 0 && (
-                        <div className="space-y-4 pt-4">
-                            <Label>Cast Weights</Label>
-                            {castWeights.map(cw => {
-                                const cast = casts.find((c: Cast) => c._id === cw.castId);
-                                return (
-                                    <div key={cw.castId} className="space-y-2">
-                                        <Label className="text-sm font-medium">{cast?.name}</Label>
-                                        <div className="flex items-center space-x-4">
-                                            <Slider
-                                                value={[cw.weight]}
-                                                onValueChange={([val]) => handleWeightChange(cw.castId, val)}
-                                                max={100}
-                                                step={1}
-                                                className="w-full"
-                                            />
-                                            <span className="text-sm text-muted-foreground w-8">{cw.weight}</span>
-                                        </div>
+                        <TabsContent value="automation" className="space-y-4 py-4">
+                            <div>
+                                <Label htmlFor="postSchedule">Daily Post Time (HH:MM in UTC)</Label>
+                                <Input id="postSchedule" type="time" value={postSchedule} onChange={e => setPostSchedule(e.target.value)} />
+                            </div>
+                            <div>
+                                <Label>Automation Type</Label>
+                                <RadioGroup value={automationType} onValueChange={(value) => setAutomationType(value)} className="flex space-x-4">
+                                    <div className="flex items-center space-x-2">
+                                        <RadioGroupItem value="topicQueue" id="topicQueue" />
+                                        <Label htmlFor="topicQueue">Topic Queue</Label>
                                     </div>
-                                );
-                            })}
-                        </div>
-                    )}
+                                    <div className="flex items-center space-x-2">
+                                        <RadioGroupItem value="dailyAction" id="dailyAction" />
+                                        <Label htmlFor="dailyAction">Daily Action</Label>
+                                    </div>
+                                </RadioGroup>
+                            </div>
+                            {automationType === 'dailyAction' && (
+                                <div className="space-y-4 p-4 border rounded-lg">
+                                    <h4 className="font-medium">Daily Action Settings</h4>
+                                    <div>
+                                        <Label htmlFor="dailyActionInput">Action Description</Label>
+                                        <Input id="dailyActionInput" value={dailyAction} onChange={(e) => setDailyAction(e.target.value)} placeholder="e.g., Report on the latest AI news" />
+                                        <p className="text-xs text-muted-foreground mt-1">This will be used as the topic for the generated video.</p>
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="dailyActionQuery">Search Query</Label>
+                                        <Input id="dailyActionQuery" value={dailyActionSearchQuery} onChange={(e) => setDailyActionSearchQuery(e.target.value)} placeholder="e.g., latest AI breakthroughs" />
+                                        <p className="text-xs text-muted-foreground mt-1">This query will be used to find new content each day.</p>
+                                    </div>
+                                </div>
+                            )}
+                        </TabsContent>
+
+                        <TabsContent value="casting" className="space-y-4 py-4">
+                            <div>
+                                <Label>Available Casts</Label>
+                                <MultipleSelector
+                                    value={castWeights.map(cw => ({ value: cw.castId, label: casts.find((c: Cast) => c._id === cw.castId)?.name || "Unknown" }))}
+                                    onChange={handleSelectionChange}
+                                    options={casts.map((cast: Cast) => ({ value: cast._id, label: cast.name }))}
+                                    placeholder="Select cast members..."
+                                    className="w-full"
+                                />
+                            </div>
+                            {castWeights.length > 0 && (
+                                <div className="space-y-4 pt-4">
+                                    <Label>Cast Weights</Label>
+                                    {castWeights.map(cw => {
+                                        const cast = casts.find((c: Cast) => c._id === cw.castId);
+                                        return (
+                                            <div key={cw.castId} className="space-y-2">
+                                                <Label className="text-sm font-medium">{cast?.name}</Label>
+                                                <div className="flex items-center space-x-4">
+                                                    <Slider value={[cw.weight]} onValueChange={([val]) => handleWeightChange(cw.castId, val)} max={100} step={1} className="w-full" />
+                                                    <span className="text-sm text-muted-foreground w-8">{cw.weight}</span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </TabsContent>
+
+                        <TabsContent value="connections" className="space-y-4 py-4">
+                            <div>
+                                <Label>Instagram Connection</Label>
+                                <div className="flex items-center justify-between p-3 border rounded-lg">
+                                    <div className="flex items-center gap-2">
+                                        <Instagram className="h-4 w-4" />
+                                        <span className="text-sm">
+                                            {isInstagramConnected ? (
+                                                <span className="text-green-600">Connected as @{instagramPlatform?.credentials?.username}</span>
+                                            ) : (
+                                                <span className="text-orange-600">Not connected</span>
+                                            )}
+                                        </span>
+                                    </div>
+                                    {!isInstagramConnected && (
+                                        <Button type="button" size="sm" variant="outline" onClick={handleConnectInstagram} disabled={isConnecting}>
+                                            {isConnecting ? 'Connecting...' : 'Connect'}
+                                            <ExternalLink className="h-3 w-3 ml-1" />
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
+                        </TabsContent>
+                    </Tabs>
 
                     <div className="flex justify-between pt-4">
                         <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
@@ -472,4 +527,27 @@ function EditAccountModal({ account, casts }: { account: Account, casts: Cast[] 
             </DialogContent>
         </Dialog>
     )
+}
+
+function DailyActionDisplay({ account }: { account: Account }) {
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Daily Action for {account.displayName}</CardTitle>
+                <CardDescription>This account is configured to perform a fixed action every day.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div>
+                    <Label className="text-sm font-semibold">Action Description</Label>
+                    <p className="text-lg p-2 bg-gray-100 dark:bg-gray-800 rounded-md">{account.dailyAction}</p>
+                    <p className="text-xs text-muted-foreground mt-1">This is used as the topic for the generated video.</p>
+                </div>
+                <div>
+                    <Label className="text-sm font-semibold">Daily Search Query</Label>
+                    <p className="text-lg p-2 bg-gray-100 dark:bg-gray-800 rounded-md">{account.dailyActionSearchQuery}</p>
+                    <p className="text-xs text-muted-foreground mt-1">This query is used to find new content each day.</p>
+                </div>
+            </CardContent>
+        </Card>
+    );
 } 

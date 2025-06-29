@@ -305,3 +305,18 @@ export const schedulePostingIfNeeded = internalMutation({
         }
     },
 });
+
+export const getRecentProjectsForAccount = internalQuery({
+    args: {
+        accountId: v.id("accounts"),
+    },
+    handler: async (ctx, { accountId }) => {
+        const threeDaysAgo = Date.now() - 3 * 24 * 60 * 60 * 1000;
+        return await ctx.db
+            .query("projects")
+            .withIndex("by_accountId", (q) => q.eq("accountId", accountId))
+            .filter((q) => q.gt(q.field("_creationTime"), threeDaysAgo))
+            .order("desc")
+            .take(10);
+    },
+});

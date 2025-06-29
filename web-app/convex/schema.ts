@@ -160,6 +160,12 @@ export default defineSchema({
       weight: v.number(),
     }))),
     postSchedule: v.optional(v.string()), // e.g., cron expression for posting time
-    topicQueue: v.optional(v.array(v.string())),
+    topicQueue: v.optional(v.array(v.object({
+      topic: v.string(),
+      url: v.optional(v.string()),
+    }))),
+    // For fixed daily actions instead of a queue
+    dailyAction: v.optional(v.string()), // e.g., "Report on the latest AI news"
+    dailyActionSearchQuery: v.optional(v.string()), // e.g., "latest AI breakthroughs"
   }).index("by_userId", ["userId"]),
 });

@@ -3,6 +3,11 @@
 import { internalAction } from "./_generated/server";
 import { v } from "convex/values";
 import { tavily } from "@tavily/core";
+import { model } from "./model";
+import { z } from "zod";
+import { generateObject } from "ai";
+import { internal } from "./_generated/api";
+import dedent from "dedent";
 
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY!;
 const tvly = tavily({
@@ -15,6 +20,7 @@ export const gather = internalAction({
         urls: v.optional(v.array(v.string())),
         topic: v.optional(v.string()),
         doMoreResearch: v.optional(v.boolean()),
+        accountId: v.optional(v.id("accounts")),
     },
     handler: async (_ctx, args) => {
         let results: Awaited<ReturnType<typeof tvly.extract>>["results"] = [];
@@ -26,11 +32,39 @@ export const gather = internalAction({
 
         if (args.topic && (sourceUrls.length === 0 || args.doMoreResearch)) {
             console.log(`Searching for topic: ${args.topic}`);
-            const searchResult = await tvly.search(args.topic, { maxResults: 5 });
-            sourceUrls.push(...searchResult.results.map(r => r.url));
-            // Remove duplicates
-            sourceUrls = [...new Set(sourceUrls)];
+            const searchResult = await tvly.search(args.topic, { maxResults: 10 });
+
+            let recentSummaries: string[] = [];
+            if (args.accountId) {
+                const recentProjects = await _ctx.runQuery(internal.projects.getRecentProjectsForAccount, { accountId: args.accountId });
+                recentSummaries = recentProjects
+                    .map(p => p.socialMediaCopy)
+                    .filter((copy): copy is string => !!copy);
+            }
+
+            const { object: selection } = await generateObject({
+                model: model,
+                system: "You are a content curator. Your goal is to select the best 1-2 URLs from a list of search results to create a short video.",
+                prompt: dedent`
+                    We are creating a video about: "${args.topic}".
+                    To avoid creating duplicate content, here are the social media posts from videos we created in the last 3 days:
+                    ${recentSummaries.length > 0 ? recentSummaries.join("\n---\n") : "None"}
+
+                    Here are the new search results:
+                    ${JSON.stringify(searchResult.results, null, 2)}
+
+                    Please select the best 1-2 URLs that are highly relevant to "${args.topic}" and offer a fresh perspective compared to our recent content.
+                `,
+                schema: z.object({
+                    selectedUrls: z.array(z.string()).min(1).max(2).describe("An array of the 1-2 best URLs to use for content extraction."),
+                    reasoning: z.string().describe("A brief explanation for your selection."),
+                }),
+            });
+
+            console.log(`AI selected URLs: ${selection.selectedUrls.join(", ")}. Reasoning: ${selection.reasoning}`);
+            sourceUrls = selection.selectedUrls;
         }
+
 
         if (sourceUrls.length > 0) {
             console.log(`Extracting content from URLs:`, sourceUrls);

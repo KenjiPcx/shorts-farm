@@ -1,3 +1,5 @@
+"use node";
+
 import { internalAction } from "./_generated/server";
 import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
@@ -8,6 +10,10 @@ import dedent from "dedent";
 import { CharacterWithAssets } from "./characters";
 import { generateObject } from "ai";
 import { model } from "./model";
+import { tigris, TIGRIS_BUCKET_NAME } from "./lib/tigris";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { v4 as uuidv4 } from "uuid";
+import { Buffer } from "buffer";
 
 const FinalDialogueTurnSchema = z.object({
     character: z.string().describe("The name of the character speaking."),
@@ -80,7 +86,7 @@ export const write = internalAction({
 
             console.log("--- Final Script ---");
 
-            const finalScenes = finalScript.scenes.map((scene) => {
+            const finalScenes = await Promise.all(finalScript.scenes.map(async (scene) => {
                 const dialogues = scene.dialogues.map(dialogue => {
                     const characterDoc = characterMap.get(dialogue.character);
                     if (!characterDoc) {
@@ -93,13 +99,44 @@ export const write = internalAction({
                         characterAssetUrl: dialogue.characterAssetUrl,
                     };
                 });
+
+                let finalContentImageUrl = scene.contentImageUrl;
+
+                // Reupload contentImageUrl to our own cloud store
+                if (scene.contentImageUrl) {
+                    try {
+                        console.log(`Reuploading image from: ${scene.contentImageUrl}`);
+                        const response = await fetch(scene.contentImageUrl);
+                        if (response.ok) {
+                            const imageBlob = await response.blob();
+                            const contentType = imageBlob.type;
+                            const fileExtension = contentType.split('/')[1] || 'jpg';
+                            const key = `image-${uuidv4()}.${fileExtension}`;
+                            const command = new PutObjectCommand({
+                                Bucket: TIGRIS_BUCKET_NAME,
+                                Key: key,
+                                Body: Buffer.from(await imageBlob.arrayBuffer()),
+                                ContentType: contentType,
+                                ACL: 'public-read',
+                            });
+                            await tigris.send(command);
+                            finalContentImageUrl = `${process.env.TIGRIS_AWS_ENDPOINT_URL_S3}/${TIGRIS_BUCKET_NAME}/${key}`;
+                            console.log(`Reuploaded to: ${finalContentImageUrl}`);
+                        } else {
+                            console.warn(`Failed to fetch image: ${scene.contentImageUrl}, status: ${response.status}`);
+                        }
+                    } catch (error) {
+                        console.error(`Error processing image ${scene.contentImageUrl}:`, error);
+                    }
+                }
+
                 return {
                     sceneNumber: scene.sceneNumber,
-                    contentImageUrl: scene.contentImageUrl,
+                    contentImageUrl: finalContentImageUrl,
                     contentImageToGenerate: scene.contentImageToGenerate,
                     dialogues: dialogues,
                 };
-            });
+            }));
 
             const scriptId = await ctx.runMutation(internal.scripts.create, {
                 projectId: args.projectId,

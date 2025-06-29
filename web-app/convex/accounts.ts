@@ -75,6 +75,8 @@ export const updateAccount = mutation({
             weight: v.number(),
         }))),
         postSchedule: v.optional(v.string()),
+        dailyAction: v.optional(v.string()),
+        dailyActionSearchQuery: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
         const userId = await getAuthUserId(ctx);
@@ -105,13 +107,14 @@ export const addTopic = mutation({
     args: {
         accountId: v.id("accounts"),
         topic: v.string(),
+        url: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
         const account = await ctx.db.get(args.accountId);
         if (!account) throw new Error("Account not found");
 
         const newQueue = account.topicQueue ?? [];
-        newQueue.push(args.topic);
+        newQueue.push({ topic: args.topic, url: args.url });
 
         await ctx.db.patch(args.accountId, { topicQueue: newQueue });
     }
@@ -120,7 +123,7 @@ export const addTopic = mutation({
 export const removeTopic = mutation({
     args: {
         accountId: v.id("accounts"),
-        topic: v.string(),
+        index: v.number(),
     },
     handler: async (ctx, args) => {
         const userId = await getAuthUserId(ctx);
@@ -129,7 +132,12 @@ export const removeTopic = mutation({
         const account = await ctx.db.get(args.accountId);
         if (!account || account.userId !== userId) throw new Error("Not authorized");
 
-        const newQueue = (account.topicQueue ?? []).filter(item => item !== args.topic);
+        const newQueue = account.topicQueue ?? [];
+        if (args.index < 0 || args.index >= newQueue.length) {
+            throw new Error("Invalid index to remove");
+        }
+        newQueue.splice(args.index, 1);
+
 
         await ctx.db.patch(args.accountId, { topicQueue: newQueue });
     }
@@ -172,7 +180,7 @@ const TopicIdeationSchema = z.object({
 });
 
 const TopicSelectionSchema = z.object({
-    bestTopic: z.string().describe("The single best topic chosen from the list of ideas."),
+    bestTopic: z.string().describe("The single best topic chosen from the list of ideas. Focus on just the topic to cover for the account's content, do not include video ideas in the topic, this topic will be used by another agent to do research on, you can however specify the type of content though like news, how to, top X, just include the topic dont include adjectives or anything else."),
     reasoning: z.string().describe("A brief explanation of why this topic was chosen as the best one for the account's audience."),
     critiques: z.object({
         topic1: z.string().describe("Critique of topic 1"),
@@ -241,7 +249,6 @@ export const internalRefillQueue = internalAction({
             const bestTopic = selectionResult.bestTopic;
             console.log(`Agent selected: "${bestTopic}". Reasoning: ${selectionResult.reasoning}`);
 
-            currentQueue.push(bestTopic);
             await ctx.runMutation(api.accounts.addTopic, { accountId: args.accountId, topic: bestTopic });
             console.log(`Successfully added "${bestTopic}" to the queue for ${account.displayName}.`);
         }

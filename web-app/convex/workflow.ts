@@ -25,6 +25,7 @@ export const videoCreationWorkflow = workflow.define({
         topic: v.optional(v.string()),
         doMoreResearch: v.optional(v.boolean()),
         userId: v.string(),
+        popTopic: v.optional(v.boolean()),
     },
     handler: async (step, args): Promise<void> => {
         const { castId, projectId, doMoreResearch, userId } = args;
@@ -47,6 +48,7 @@ export const videoCreationWorkflow = workflow.define({
                 urls,
                 topic,
                 doMoreResearch,
+                accountId: args.accountId,
             });
 
             lessonPlan = await step.runAction(internal.lessonPlanner.plan, {
@@ -84,7 +86,7 @@ export const videoCreationWorkflow = workflow.define({
         // triggered from the remotion webhook when the video is complete
 
         // If the project was created from an account queue, pop the topic.
-        if (args.accountId) {
+        if (args.accountId && args.popTopic) {
             await step.runMutation(internal.accounts.popTopic, {
                 accountId: args.accountId,
             });
@@ -275,32 +277,12 @@ export const runDailyVideoCreation = internalAction({
         console.log(`Found ${activeAccounts.length} active accounts`);
 
         for (const account of activeAccounts) {
-            // Find the next topic in the queue
-            let topic = account.topicQueue?.[0];
-
-            // If no topics, refill the queue first
-            if (!topic) {
-                console.log(`No pending topics for account ${account.displayName}. Refilling queue first.`);
-                await ctx.runAction(internal.accounts.internalRefillQueue, { accountId: account._id });
-
-                // Get the updated account with the new queue
-                const updatedAccount = await ctx.runQuery(internal.accounts.get, { id: account._id });
-                topic = updatedAccount?.topicQueue?.[0];
-
-                if (!topic) {
-                    console.warn(`Failed to generate topics for account ${account.displayName}. Skipping.`);
-                    continue;
-                }
-            }
-
             // Check if user's accounts has enough tokens
             const userProperties = await ctx.runQuery(api.users.getUserProperties, { userId: account.userId });
             if (!userProperties || userProperties.tokens <= 0) {
                 console.warn(`Account ${account.displayName} has no tokens left. Skipping video creation.`);
                 continue;
             }
-
-            console.log(`Starting video creation for topic: "${topic}" for account ${account.displayName}`);
 
             // Start the video creation workflow
             if (!account.castWeights || account.castWeights.length === 0) {
@@ -327,27 +309,94 @@ export const runDailyVideoCreation = internalAction({
                 console.warn(`Weighted random selection failed for account ${account.displayName}. Falling back to first cast.`);
             }
 
-            const projectId = await ctx.runMutation(internal.projects.createProjectForTopic, {
-                topic: topic,
-                userId: account.userId,
-                castId: primaryCastId,
-                accountId: account._id,
-            });
+            // New Logic: Prioritize topic queue, then daily action, then refill.
+            const topicItem = account.topicQueue?.[0];
 
-            await workflow.start(
-                ctx,
-                internal.workflow.videoCreationWorkflow,
-                {
-                    accountId: account._id,
-                    projectId,
-                    topic: topic,
+            if (topicItem) {
+                // 1. Topic Queue has priority.
+                console.log(`Starting video creation for topic: "${topicItem.topic}" for account ${account.displayName}`);
+
+                const projectId = await ctx.runMutation(internal.projects.createProjectForTopic, {
+                    topic: topicItem.topic,
                     userId: account.userId,
                     castId: primaryCastId,
-                }
-            );
+                    accountId: account._id,
+                    urls: topicItem.url ? [topicItem.url] : [],
+                });
 
-            // Pop the used topic from the queue (this is handled in the workflow via popTopic)
-            // The workflow will call internal.accounts.popTopic when it completes
+                await workflow.start(
+                    ctx,
+                    internal.workflow.videoCreationWorkflow,
+                    {
+                        accountId: account._id,
+                        projectId,
+                        topic: topicItem.topic,
+                        urls: topicItem.url ? [topicItem.url] : [],
+                        userId: account.userId,
+                        castId: primaryCastId,
+                        popTopic: true,
+                    }
+                );
+            } else if (account.dailyAction && account.dailyActionSearchQuery) {
+                // 2. Fallback to Daily Action.
+                console.log(`Using daily action "${account.dailyAction}" for account ${account.displayName}`);
+
+                const projectId = await ctx.runMutation(internal.projects.createProjectForTopic, {
+                    topic: account.dailyAction,
+                    userId: account.userId,
+                    castId: primaryCastId,
+                    accountId: account._id,
+                });
+
+                await workflow.start(
+                    ctx,
+                    internal.workflow.videoCreationWorkflow,
+                    {
+                        accountId: account._id,
+                        projectId,
+                        topic: account.dailyActionSearchQuery,
+                        userId: account.userId,
+                        castId: primaryCastId,
+                        popTopic: false,
+                    }
+                );
+            } else {
+                // 3. Fallback to refilling the queue.
+                console.log(`No pending topics or daily action for account ${account.displayName}. Refilling queue.`);
+                await ctx.runAction(internal.accounts.internalRefillQueue, { accountId: account._id });
+
+                const updatedAccount = await ctx.runQuery(internal.accounts.get, { id: account._id });
+                const newTopicItem = updatedAccount?.topicQueue?.[0];
+
+                if (newTopicItem) {
+                    console.log(`Starting video creation for newly generated topic: "${newTopicItem.topic}"`);
+
+                    const projectId = await ctx.runMutation(internal.projects.createProjectForTopic, {
+                        topic: newTopicItem.topic,
+                        userId: account.userId,
+                        castId: primaryCastId,
+                        accountId: account._id,
+                        urls: newTopicItem.url ? [newTopicItem.url] : [],
+                    });
+
+                    await workflow.start(
+                        ctx,
+                        internal.workflow.videoCreationWorkflow,
+                        {
+                            accountId: account._id,
+                            projectId,
+                            topic: newTopicItem.topic,
+                            urls: newTopicItem.url ? [newTopicItem.url] : [],
+                            userId: account.userId,
+                            castId: primaryCastId,
+                            popTopic: true,
+                        }
+                    );
+                } else {
+                    console.warn(`Failed to generate topics for account ${account.displayName}. Skipping.`);
+                    continue;
+                }
+            }
         }
     }
 });
@@ -533,6 +582,8 @@ export const generateSocialCopyStep = internalAction({
                 Make it include emojis.
                 Make it include hashtags.
                 Make the copy mentioned by the character relevant to the video topic and also the character.
+                Respond directly with the copy to be posted to TikTok, no other text.
+                Do not start with "Here's a copy for you to post to TikTok" or anything like that.
             `,
         });
 

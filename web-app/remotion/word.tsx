@@ -24,7 +24,7 @@ export const Word: React.FC<{
             style={{
                 display: 'inline-block',
                 opacity,
-                fontSize: '6rem',
+                fontSize: '3rem',
                 marginRight: '0.5rem',
                 fontWeight: 'bold',
                 color: isSpeaking ? '#FFD700' : 'white',

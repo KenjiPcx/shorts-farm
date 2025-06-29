@@ -120,6 +120,7 @@ export const generateSocialCopy = action({
                 Make the copy mentioned by the character relevant to the video topic and also the character.
 
                 Respond directly with the copy to be posted to TikTok, no other text.
+                Do not start with "Here's a copy for you to post to TikTok" or anything like that.
             `,
         });
 

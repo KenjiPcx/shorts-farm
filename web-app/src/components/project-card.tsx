@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { PlayIcon, RotateCcwIcon, RefreshCwIcon, Clapperboard, Mic, ListChecks, FileText, StopCircle, Image as ImageIcon, Loader2, Instagram, Send, Check, ChevronsUpDown } from 'lucide-react';
+import { PlayIcon, RotateCcwIcon, RefreshCwIcon, Clapperboard, Mic, ListChecks, FileText, StopCircle, Image as ImageIcon, Loader2, Instagram, Send, Check, ChevronsUpDown, Trash2 } from 'lucide-react';
 import RenderProgressDisplay from './render-progress-display';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -54,6 +54,7 @@ export function ProjectCard({ project, currentUser, getCharacterName, getCastNam
     const [selectedAccountId, setSelectedAccountId] = useState<Id<"accounts"> | null>(null);
     const [showRepublishWarning, setShowRepublishWarning] = useState(false);
     const [accountDropdownOpen, setAccountDropdownOpen] = useState(false);
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
     const generateSocials = useAction(api.social.generateSocials);
     const rerunVideoCreation = useMutation(api.workflow.rerunVideoCreation);
@@ -61,6 +62,7 @@ export function ProjectCard({ project, currentUser, getCharacterName, getCastNam
     const rerenderVideo = useMutation(api.workflow.rerenderVideo);
     const stopWorkflow = useMutation(api.workflow.stopWorkflow);
     const publishToInstagram = useAction(api.posting.postToInstagram);
+    const deleteProject = useMutation(api.projects.deleteProject);
 
     // Get user's Instagram accounts
     const myAccounts = useQuery(api.accounts.getMyAccounts);
@@ -133,6 +135,16 @@ export function ProjectCard({ project, currentUser, getCharacterName, getCastNam
 
     const handlePublishToInstagram = () => {
         checkForRepublish();
+    };
+
+    const handleDeleteProject = async () => {
+        try {
+            await deleteProject({ projectId: project._id });
+            setIsDeleteDialogOpen(false);
+        } catch (error) {
+            console.error("Failed to delete project", error);
+            alert("Failed to delete project. Please try again.");
+        }
     };
 
     return (
@@ -576,9 +588,50 @@ export function ProjectCard({ project, currentUser, getCharacterName, getCastNam
                                 </TooltipContent>
                             </Tooltip>
                         )}
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="text-red-500 hover:text-red-600"
+                                    onClick={() => setIsDeleteDialogOpen(true)}
+                                >
+                                    <Trash2 className="h-5 w-5" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Delete Project</p>
+                            </TooltipContent>
+                        </Tooltip>
                     </TooltipProvider>
                 </div>}
             </div>
+            <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Are you sure?</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <p className="text-sm text-muted-foreground">
+                            This will permanently delete the project and all its associated data. This action cannot be undone.
+                        </p>
+                        <div className="flex justify-end space-x-2">
+                            <Button
+                                variant="outline"
+                                onClick={() => setIsDeleteDialogOpen(false)}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                variant="destructive"
+                                onClick={handleDeleteProject}
+                            >
+                                Delete Project
+                            </Button>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </Card>
     );
 } 

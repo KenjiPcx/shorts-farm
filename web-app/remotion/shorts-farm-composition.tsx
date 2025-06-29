@@ -168,7 +168,8 @@ export const ShortsFarmComposition: React.FC<z.infer<typeof ShortsFarmSchema>> =
                                         width: '90%',
                                         objectFit: 'contain',
                                         zIndex: 0,
-                                        transform: 'translateY(-25%)',
+                                        position: 'absolute',
+                                        top: "12.5%"
                                     }}
                                     maxRetries={3}
                                     delayRenderRetries={3}

@@ -81,7 +81,8 @@ export const deleteScriptByProjectId = internalMutation({
     handler: async (ctx, args) => {
         const script = await ctx.db.query("scripts").withIndex("by_projectId", (q) => q.eq("projectId", args.projectId)).first();
         if (!script) {
-            throw new Error("Script not found");
+            console.error(`Script not found for project ${args.projectId}`);
+            return;
         }
         await ctx.db.delete(script._id);
     }
