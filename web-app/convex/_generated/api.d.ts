@@ -8,21 +8,25 @@
  * @module
  */
 
+import type * as accounts from "../accounts.js";
 import type * as assets from "../assets.js";
 import type * as auth from "../auth.js";
 import type * as casts from "../casts.js";
 import type * as characters from "../characters.js";
+import type * as crons from "../crons.js";
 import type * as gatherContent from "../gatherContent.js";
 import type * as http from "../http.js";
 import type * as lessonPlanner from "../lessonPlanner.js";
 import type * as lib_tigris from "../lib/tigris.js";
 import type * as media from "../media.js";
 import type * as model from "../model.js";
+import type * as posting from "../posting.js";
 import type * as projects from "../projects.js";
 import type * as remotion from "../remotion.js";
 import type * as scriptWriter from "../scriptWriter.js";
 import type * as scripts from "../scripts.js";
 import type * as seed from "../seed.js";
+import type * as social from "../social.js";
 import type * as tools from "../tools.js";
 import type * as users from "../users.js";
 import type * as videos from "../videos.js";
@@ -44,21 +48,25 @@ import type {
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  accounts: typeof accounts;
   assets: typeof assets;
   auth: typeof auth;
   casts: typeof casts;
   characters: typeof characters;
+  crons: typeof crons;
   gatherContent: typeof gatherContent;
   http: typeof http;
   lessonPlanner: typeof lessonPlanner;
   "lib/tigris": typeof lib_tigris;
   media: typeof media;
   model: typeof model;
+  posting: typeof posting;
   projects: typeof projects;
   remotion: typeof remotion;
   scriptWriter: typeof scriptWriter;
   scripts: typeof scripts;
   seed: typeof seed;
+  social: typeof social;
   tools: typeof tools;
   users: typeof users;
   videos: typeof videos;

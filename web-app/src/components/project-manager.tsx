@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useQuery, useMutation, useAction } from 'convex/react';
+import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,35 +8,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from './ui/badge';
-import { Progress } from './ui/progress';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { PlayIcon, RotateCcwIcon, RefreshCwIcon, Clapperboard, Mic, ListChecks, FileText, StopCircle } from 'lucide-react';
 import { VideoPreviewModal } from './video-preview-modal';
-import RenderProgressDisplay from './render-progress-display';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { ProjectCard } from './project-card';
 
-const statusStyles: Record<string, string> = {
-  gathering: 'bg-blue-500',
-  planning: 'bg-yellow-500',
-  writing: 'bg-orange-500',
-  "generating-voices": 'bg-purple-500',
-  rendering: 'bg-pink-500',
-  done: 'bg-green-500',
-  error: 'bg-red-500',
-};
 
-const statusProgress: Record<string, number> = {
-  gathering: 15,
-  planning: 30,
-  writing: 50,
-  "generating-voices": 70,
-  rendering: 90,
-  done: 100,
-  error: 100,
-};
 
-type ProjectWithVideoUrl = NonNullable<ReturnType<typeof useQuery<typeof api.projects.getMyProjects>>>[number];
+type ProjectWithVideoUrl = NonNullable<ReturnType<typeof useQuery<typeof api.projects.getMyProjects>>>[number] & { thumbnailUrl?: string | null };
 
 export function ProjectManager() {
   const currentUser = useQuery(api.auth.currentUser);
@@ -45,10 +23,6 @@ export function ProjectManager() {
   const casts = useQuery(api.casts.getCasts);
   const characters = useQuery(api.characters.getAll);
   const startVideoCreation = useMutation(api.workflow.startVideoCreation);
-  const rerunVideoCreation = useMutation(api.workflow.rerunVideoCreation);
-  const rerunVideoCreationFromScratch = useMutation(api.workflow.rerunVideoCreationFromScratch);
-  const rerenderVideo = useMutation(api.workflow.rerenderVideo);
-  const stopWorkflow = useAction(api.workflow.stopWorkflow);
   const [topic, setTopic] = useState('');
   const [urls, setUrls] = useState('');
   const [selectedCast, setSelectedCast] = useState<Id<"casts"> | null>(null);
@@ -152,196 +126,14 @@ export function ProjectManager() {
         </div>
         <div className="space-y-4">
           {projects?.map(project => (
-            <Card key={project._id} className="overflow-visible relative">
-              <div className="flex justify-between">
-                <div className="flex-grow pr-12 min-w-0">
-                  <CardHeader>
-                    <CardTitle className='flex justify-between items-start'>
-                      <span>{project.topic}</span>
-                      <Badge className={`${statusStyles[project.status]}`}>{project.status}</Badge>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-sm text-muted-foreground space-y-2 mb-4">
-                      {project.user && (
-                        <p><strong>Owner:</strong> {project.user}</p>
-                      )}
-                      {project.castId && (
-                        <p><strong>Cast:</strong> {getCastName(project.castId)}</p>
-                      )}
-                      {project.urls && project.urls.length > 0 && (
-                        <div>
-                          <strong>Source URLs:</strong>
-                          <ul className="list-disc pl-5">
-                            {project.urls.map((url, i) => <li key={i}><a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline block truncate">{url}</a></li>)}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-
-                    {project.status !== 'done' && project.status !== 'error' && project.status !== 'rendering' && (
-                      <Progress value={statusProgress[project.status]} className="w-full mb-4" />
-                    )}
-
-                    <div className="space-y-2">
-                      {project.plan && (
-                        <Collapsible>
-                          <CollapsibleTrigger asChild>
-                            <Button variant="ghost" className="p-0 h-auto font-semibold">
-                              <ListChecks className="h-4 w-4 mr-2" />
-                              View Plan
-                            </Button>
-                          </CollapsibleTrigger>
-                          <CollapsibleContent className="pt-2">
-                            <div className="space-y-2 rounded-md bg-gray-50 dark:bg-gray-800/50 p-3">
-                              {project.plan.map(scene => (
-                                <div key={scene.sceneNumber} className="p-2 border-l-2">
-                                  <p className='font-bold'>Scene {scene.sceneNumber}</p>
-                                  {scene.contentImageUrl ? <img src={scene.contentImageUrl} alt="Scene Image" className="w-1/2" /> : ''}
-                                  {scene.dialoguePlan.map((dialogue, i) => (
-                                    <p key={i}><strong>{getCharacterName(dialogue.characterId)}:</strong> {dialogue.lineDescription}</p>
-                                  ))}
-                                </div>
-                              ))}
-                            </div>
-                          </CollapsibleContent>
-                        </Collapsible>
-                      )}
-
-                      {project.script && (
-                        <Collapsible>
-                          <CollapsibleTrigger asChild>
-                            <Button variant="ghost" className="p-0 h-auto font-semibold">
-                              <FileText className="h-4 w-4 mr-2" />
-                              View Script
-                            </Button>
-                          </CollapsibleTrigger>
-                          <CollapsibleContent className="pt-2">
-                            <div className="space-y-2 rounded-md bg-gray-50 dark:bg-gray-800/50 p-3">
-                              {project.script.scenes.map(scene => (
-                                <div key={scene.sceneNumber} className="p-2 border-l-2">
-                                  <p className='font-bold'>Scene {scene.sceneNumber}</p>
-                                  {scene.dialogues.map((dialogue, i) => (
-                                    <p key={i}><strong>{getCharacterName(dialogue.characterId)}:</strong> {dialogue.line}</p>
-                                  ))}
-                                </div>
-                              ))}
-                            </div>
-                          </CollapsibleContent>
-                        </Collapsible>
-                      )}
-
-                      {project.script?.scenes.some(s => s.dialogues.some(d => d.voiceUrl)) && (
-                        <Collapsible>
-                          <CollapsibleTrigger asChild>
-                            <Button variant="ghost" className="p-0 h-auto font-semibold">
-                              <Mic className="h-4 w-4 mr-2" />
-                              View Generated Voices
-                            </Button>
-                          </CollapsibleTrigger>
-                          <CollapsibleContent className="pt-2">
-                            <div className="space-y-4 rounded-md bg-gray-50 dark:bg-gray-800/50 p-3">
-                              {project.script.scenes.map(scene => (
-                                <div key={scene.sceneNumber}>
-                                  <p className='font-bold mb-2'>Scene {scene.sceneNumber}</p>
-                                  <div className="space-y-2">
-                                    {scene.dialogues.map((dialogue, i) => (
-                                      dialogue.voiceUrl && (
-                                        <div key={i} className="flex items-center space-x-2">
-                                          <p className="font-medium w-32 truncate">{getCharacterName(dialogue.characterId)}:</p>
-                                          <audio src={dialogue.voiceUrl} controls className="h-8 w-full" />
-                                        </div>
-                                      )
-                                    ))}
-                                  </div>
-                                </div>
-                              ))}
-                              {/* {project.script.captions && (
-                                <div className="mt-4">
-                                  <p className='font-bold mb-2'>Captions</p>
-                                  <div className="text-sm space-y-1">
-                                    {project.script.captions.map((caption, i) => (
-                                      <p key={i}>- {caption.text}</p>
-                                    ))}
-                                  </div>
-                                </div>
-                              )} */}
-                            </div>
-                          </CollapsibleContent>
-                        </Collapsible>
-                      )}
-                    </div>
-                    <RenderProgressDisplay project={project} />
-
-                    {project.status === 'error' && (
-                      <p className="text-red-500 mt-2">Something went wrong during generation.</p>
-                    )}
-                  </CardContent>
-                </div>
-                {currentUser?._id === project.userId && <div className="absolute top-1/2 -translate-y-1/2 right-0 translate-x-1/2 flex flex-col space-y-2 p-2 border bg-white dark:bg-gray-900 dark:border-gray-800 rounded-lg shadow-lg">
-                  <TooltipProvider>
-                    {(project.status === 'rendering' || project.status === 'done' || project.status === 'error') && project.script && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button variant="ghost" size="icon" onClick={() => setPreviewProject(project)}>
-                            <PlayIcon className="h-5 w-5" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Preview Composition</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
-                    {(project.status === 'done' || project.status === 'error' || project.status === 'rendering') && project.script && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button variant="ghost" size="icon" onClick={() => rerenderVideo({ projectId: project._id })}>
-                            <Clapperboard className="h-5 w-5" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Rerender video</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
-                    {project.status === 'error' && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button variant="ghost" size="icon" onClick={() => rerunVideoCreation({ projectId: project._id })}>
-                            <RefreshCwIcon className="h-5 w-5" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Rerun from failed step</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={() => rerunVideoCreationFromScratch({ projectId: project._id })}>
-                          <RotateCcwIcon className="h-5 w-5" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Rerun from scratch</p>
-                      </TooltipContent>
-                    </Tooltip>
-                    {project.workflowId && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button variant="ghost" size="icon" onClick={() => stopWorkflow({ workflowId: project.workflowId! })}>
-                            <StopCircle className="h-5 w-5" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Stop workflow</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
-                  </TooltipProvider>
-                </div>}
-              </div>
-            </Card>
+            <ProjectCard
+              key={project._id}
+              project={project}
+              currentUser={currentUser}
+              getCharacterName={getCharacterName}
+              getCastName={getCastName}
+              setPreviewProject={setPreviewProject}
+            />
           ))}
           {projects?.length === 0 && (
             <Card>
