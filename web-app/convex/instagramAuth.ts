@@ -2,7 +2,7 @@
 
 import { action } from "./_generated/server";
 import { v } from "convex/values";
-import { api, internal } from "./_generated/api";
+import { internal } from "./_generated/api";
 
 // Instagram OAuth Configuration
 const INSTAGRAM_API_BASE = "https://graph.instagram.com";
@@ -17,7 +17,7 @@ export const generateInstagramAuthUrl = action({
     args: {
         accountId: v.id("accounts"),
     },
-    handler: async (ctx, { accountId }) => {
+    handler: async (_ctx, { accountId }) => {
         const instagramAppId = process.env.INSTAGRAM_APP_ID;
         const convexUrl = process.env.CONVEX_URL;
 
@@ -92,7 +92,7 @@ export const exchangeCodeForToken = action({
                 throw new Error(`Token exchange failed: ${JSON.stringify(tokenData)}`);
             }
 
-            const { access_token: shortLivedToken, user_id: igUserId } = tokenData;
+            const { access_token: shortLivedToken, user_id: _igUserId } = tokenData;
 
             // Step 2: Exchange short-lived token for long-lived token
             const longLivedTokenResponse = await fetch(

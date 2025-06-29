@@ -4,7 +4,7 @@ import { Doc } from "./_generated/dataModel";
 import { mutation } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { vLessonPlanScene } from "./schema";
-import { api, internal } from "./_generated/api";
+import { api } from "./_generated/api";
 
 export type ProjectWithScript = Doc<"projects"> & {
     script?: Doc<"scripts"> | null,
