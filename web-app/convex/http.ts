@@ -60,38 +60,12 @@ http.route({
                 await ctx.runMutation(api.projects.updateProjectStatus, { projectId: project._id, status: "error", statusMessage: "Webhook success but no output URL." });
                 return new Response("Missing output URL", { status: 400 });
             }
-            const videoId = await ctx.runMutation(internal.videos.create, {
+
+            console.log(`Starting post-render workflow for project ${project._id}`);
+            await ctx.runMutation(api.workflow.startPostRenderWorkflow, {
                 projectId: project._id,
-                url: videoUrl,
+                videoUrl: videoUrl,
             });
-            await ctx.runMutation(internal.projects.setFinalVideoId, {
-                projectId: project._id,
-                videoId: videoId,
-            });
-            console.log(`Successfully ingested video for project ${project._id}`);
-
-            // If the project is from an automation account, schedule the post
-            if (project.accountId) {
-                const account = await ctx.runQuery(internal.accounts.get, { id: project.accountId });
-                if (account?.postSchedule) {
-                    try {
-                        const [hours, minutes] = account.postSchedule.split(':').map(Number);
-                        const now = new Date();
-                        const nextPostDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
-
-                        // If the time has already passed for today, schedule it for tomorrow
-                        if (nextPostDate < now) {
-                            nextPostDate.setDate(nextPostDate.getDate() + 1);
-                        }
-
-                        console.log(`Scheduling post for project ${project._id
-                            } at ${nextPostDate}`);
-                        await ctx.scheduler.runAt(nextPostDate, internal.posting.postToInstagram, { projectId: project._id, accountId: project.accountId });
-                    } catch (err) {
-                        console.error('Failed to parse time string or schedule post:', err);
-                    }
-                }
-            }
         } else if (payload.type === "error") {
             console.error(`Render failed for project ${project._id}`, payload.errors);
             const errorMessage = payload.errors[0]?.message ?? "Unknown rendering error";

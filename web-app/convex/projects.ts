@@ -4,12 +4,14 @@ import { Doc } from "./_generated/dataModel";
 import { mutation } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { vLessonPlanScene } from "./schema";
+import { api, internal } from "./_generated/api";
 
 export type ProjectWithScript = Doc<"projects"> & {
     script?: Doc<"scripts"> | null,
     videoUrl?: string | null,
     user?: string | null,
-    thumbnailUrl?: string | null
+    thumbnailUrl?: string | null,
+    account?: Doc<"accounts"> | null
 };
 
 export const createProjectForTopic = internalMutation({
@@ -182,7 +184,8 @@ export const getMyProjects = query({
                     : null;
                 const user = project.userId ? await ctx.db.get(project.userId) : null;
                 const thumbnail = project.thumbnailStorageId ? await ctx.storage.getUrl(project.thumbnailStorageId) : null;
-                return { ...project, script, videoUrl: video?.finalUrl ?? null, user: user?.name ?? null, thumbnailUrl: thumbnail ?? null };
+                const account = project.accountId ? await ctx.db.get(project.accountId) : null;
+                return { ...project, script, videoUrl: video?.finalUrl ?? null, user: user?.name ?? null, thumbnailUrl: thumbnail ?? null, account };
             })
         );
     },
@@ -268,5 +271,37 @@ export const appendProjectPublishedMediaId = mutation({
                 mediaId: args.mediaId
             }]
         });
+    },
+});
+
+export const schedulePostingIfNeeded = internalMutation({
+    args: {
+        projectId: v.id("projects"),
+    },
+    handler: async (ctx, args) => {
+        const project = await ctx.db.get(args.projectId);
+        if (!project?.accountId) return;
+
+        const account = await ctx.db.get(project.accountId);
+        if (!account?.postSchedule) return;
+
+        try {
+            const [hours, minutes] = account.postSchedule.split(':').map(Number);
+            const now = new Date();
+            const nextPostDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
+
+            // If the time has already passed for today, schedule it for tomorrow
+            if (nextPostDate < now) {
+                nextPostDate.setDate(nextPostDate.getDate() + 1);
+            }
+
+            console.log(`Scheduling post for project ${args.projectId} at ${nextPostDate}`);
+            await ctx.scheduler.runAt(nextPostDate, api.posting.postToInstagram, {
+                projectId: args.projectId,
+                accountId: project.accountId,
+            });
+        } catch (err) {
+            console.error('Failed to parse time string or schedule post:', err);
+        }
     },
 });

@@ -8,9 +8,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { PlayIcon, RotateCcwIcon, RefreshCwIcon, Clapperboard, Mic, ListChecks, FileText, StopCircle, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { PlayIcon, RotateCcwIcon, RefreshCwIcon, Clapperboard, Mic, ListChecks, FileText, StopCircle, Image as ImageIcon, Loader2, Instagram, Send, Check, ChevronsUpDown } from 'lucide-react';
 import RenderProgressDisplay from './render-progress-display';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 type ProjectWithVideoUrl = NonNullable<ReturnType<typeof useQuery<typeof api.projects.getMyProjects>>>[number] & { thumbnailUrl?: string | null };
 
@@ -44,11 +48,28 @@ interface ProjectCardProps {
 
 export function ProjectCard({ project, currentUser, getCharacterName, getCastName, setPreviewProject }: ProjectCardProps) {
     const [isGeneratingSocials, setIsGeneratingSocials] = useState(false);
+    const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
+    const [isPublishing, setIsPublishing] = useState(false);
+    const [publishingProgress, setPublishingProgress] = useState<string>("");
+    const [selectedAccountId, setSelectedAccountId] = useState<Id<"accounts"> | null>(null);
+    const [showRepublishWarning, setShowRepublishWarning] = useState(false);
+    const [accountDropdownOpen, setAccountDropdownOpen] = useState(false);
+
     const generateSocials = useAction(api.social.generateSocials);
     const rerunVideoCreation = useMutation(api.workflow.rerunVideoCreation);
     const rerunVideoCreationFromScratch = useMutation(api.workflow.rerunVideoCreationFromScratch);
     const rerenderVideo = useMutation(api.workflow.rerenderVideo);
     const stopWorkflow = useMutation(api.workflow.stopWorkflow);
+    const publishToInstagram = useAction(api.posting.postToInstagram);
+
+    // Get user's Instagram accounts
+    const myAccounts = useQuery(api.accounts.getMyAccounts);
+    const connectedInstagramAccounts = myAccounts?.filter(account => {
+        const instagramPlatform = account.platforms.find(p => p.platform === 'instagram');
+        return instagramPlatform?.credentials?.accessToken &&
+            instagramPlatform?.credentials?.expiresAt &&
+            instagramPlatform.credentials.expiresAt > Date.now();
+    }) || [];
 
     const handleGenerateSocials = async () => {
         setIsGeneratingSocials(true);
@@ -60,6 +81,58 @@ export function ProjectCard({ project, currentUser, getCharacterName, getCastNam
         } finally {
             setIsGeneratingSocials(false);
         }
+    };
+
+    const checkForRepublish = () => {
+        // Check if project has been published before
+        const hasBeenPublished = project.publishedMediaIds &&
+            project.publishedMediaIds.some((media: any) => media.platform === 'instagram');
+
+        if (hasBeenPublished) {
+            setShowRepublishWarning(true);
+        } else {
+            handleActualPublish();
+        }
+    };
+
+    const handleActualPublish = async () => {
+        if (!selectedAccountId) {
+            alert("Please select an Instagram account.");
+            return;
+        }
+
+        setIsPublishing(true);
+        setPublishingProgress("Uploading video to Instagram...");
+
+        try {
+            // Simulate progress updates (in real implementation, the backend would send these)
+            setTimeout(() => setPublishingProgress("Processing video..."), 1000);
+            setTimeout(() => setPublishingProgress("Waiting for Instagram approval..."), 30000);
+            setTimeout(() => setPublishingProgress("Publishing to feed..."), 90000);
+
+            await publishToInstagram({
+                projectId: project._id,
+                accountId: selectedAccountId
+            });
+
+            setPublishingProgress("Successfully published!");
+            setTimeout(() => {
+                alert("Successfully published to Instagram!");
+                setIsPublishModalOpen(false);
+                setSelectedAccountId(null);
+                setPublishingProgress("");
+            }, 1000);
+        } catch (error) {
+            console.error("Failed to publish to Instagram", error);
+            alert("Failed to publish to Instagram. Please try again.");
+            setPublishingProgress("");
+        } finally {
+            setTimeout(() => setIsPublishing(false), 1000);
+        }
+    };
+
+    const handlePublishToInstagram = () => {
+        checkForRepublish();
     };
 
     return (
@@ -76,6 +149,9 @@ export function ProjectCard({ project, currentUser, getCharacterName, getCastNam
                         <div className="text-sm text-muted-foreground space-y-2 mb-4">
                             {project.user && (
                                 <p><strong>Owner:</strong> {project.user}</p>
+                            )}
+                            {project.accountId && project.account && (
+                                <p><strong>Auto Account:</strong> <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-md text-xs font-medium">🤖 {project.account.displayName}</span></p>
                             )}
                             {project.castId && (
                                 <p><strong>Cast:</strong> {getCastName(project.castId)}</p>
@@ -217,6 +293,203 @@ export function ProjectCard({ project, currentUser, getCharacterName, getCastNam
                 </div>
                 {currentUser?._id === project.userId && <div className="absolute top-1/2 -translate-y-1/2 right-0 translate-x-1/2 flex flex-col space-y-2 p-2 border bg-white dark:bg-gray-900 dark:border-gray-800 rounded-lg shadow-lg">
                     <TooltipProvider>
+                        {project.status === 'done' && project.videoUrl && connectedInstagramAccounts.length > 0 && (
+                            <Dialog open={isPublishModalOpen} onOpenChange={setIsPublishModalOpen}>
+                                <DialogTrigger asChild>
+                                    <div>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    disabled={isPublishing}
+                                                >
+                                                    {isPublishing ? (
+                                                        <Loader2 className="h-5 w-5 animate-spin" />
+                                                    ) : (
+                                                        <Send className="h-5 w-5" />
+                                                    )}
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Publish to Instagram</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </div>
+                                </DialogTrigger>
+                                <DialogContent>
+                                    <DialogHeader>
+                                        <DialogTitle>Publish to Instagram</DialogTitle>
+                                    </DialogHeader>
+                                    <div className="space-y-4 py-4">
+                                        <Label>Select Instagram Account</Label>
+                                        <Popover open={accountDropdownOpen} onOpenChange={setAccountDropdownOpen}>
+                                            <PopoverTrigger asChild>
+                                                <Button
+                                                    variant="outline"
+                                                    role="combobox"
+                                                    aria-expanded={accountDropdownOpen}
+                                                    className="w-full justify-between"
+                                                >
+                                                    {selectedAccountId ? (
+                                                        (() => {
+                                                            const account = connectedInstagramAccounts.find(acc => acc._id === selectedAccountId);
+                                                            const instagramPlatform = account?.platforms.find(p => p.platform === 'instagram');
+                                                            return (
+                                                                <div className="flex items-center space-x-2">
+                                                                    <Instagram className="h-4 w-4" />
+                                                                    <div className="flex flex-col items-start">
+                                                                        <span className="font-medium">{account?.displayName}</span>
+                                                                        <span className="text-xs text-muted-foreground">
+                                                                            @{instagramPlatform?.credentials?.username}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })()
+                                                    ) : (
+                                                        "Select account..."
+                                                    )}
+                                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-full p-0">
+                                                <Command>
+                                                    <CommandInput placeholder="Search accounts..." />
+                                                    <CommandList>
+                                                        <CommandEmpty>No accounts found.</CommandEmpty>
+                                                        <CommandGroup>
+                                                            {connectedInstagramAccounts.map((account) => {
+                                                                const instagramPlatform = account.platforms.find(p => p.platform === 'instagram');
+                                                                return (
+                                                                    <CommandItem
+                                                                        key={account._id}
+                                                                        value={`${account.displayName} @${instagramPlatform?.credentials?.username}`}
+                                                                        onSelect={() => {
+                                                                            setSelectedAccountId(account._id);
+                                                                            setAccountDropdownOpen(false);
+                                                                        }}
+                                                                    >
+                                                                        <Check
+                                                                            className={`mr-2 h-4 w-4 ${selectedAccountId === account._id ? "opacity-100" : "opacity-0"}`}
+                                                                        />
+                                                                        <div className="flex items-center space-x-2">
+                                                                            <Instagram className="h-4 w-4" />
+                                                                            <div>
+                                                                                <p className="font-medium">{account.displayName}</p>
+                                                                                <p className="text-sm text-muted-foreground">
+                                                                                    @{instagramPlatform?.credentials?.username}
+                                                                                </p>
+                                                                            </div>
+                                                                        </div>
+                                                                    </CommandItem>
+                                                                );
+                                                            })}
+                                                        </CommandGroup>
+                                                    </CommandList>
+                                                </Command>
+                                            </PopoverContent>
+                                        </Popover>
+                                        {project.socialMediaCopy && (
+                                            <div>
+                                                <Label>Caption Preview</Label>
+                                                <Textarea
+                                                    value={project.socialMediaCopy}
+                                                    readOnly
+                                                    className="mt-2 bg-gray-50 dark:bg-gray-800/50"
+                                                    rows={3}
+                                                />
+                                            </div>
+                                        )}
+
+                                        {/* Publishing Progress */}
+                                        {isPublishing && publishingProgress && (
+                                            <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
+                                                <div className="flex items-center space-x-2">
+                                                    <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                                                    <span className="text-sm text-blue-800 dark:text-blue-200">
+                                                        {publishingProgress}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <div className="flex justify-end space-x-2">
+                                            <Button
+                                                variant="outline"
+                                                onClick={() => {
+                                                    setIsPublishModalOpen(false);
+                                                    setSelectedAccountId(null);
+                                                    setPublishingProgress("");
+                                                }}
+                                                disabled={isPublishing}
+                                            >
+                                                Cancel
+                                            </Button>
+                                            <Button
+                                                onClick={handlePublishToInstagram}
+                                                disabled={!selectedAccountId || isPublishing}
+                                            >
+                                                {isPublishing ? (
+                                                    <>
+                                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                                        Publishing...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Send className="h-4 w-4 mr-2" />
+                                                        Publish Now
+                                                    </>
+                                                )}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </DialogContent>
+                            </Dialog>
+                        )}
+
+                        {/* Republish Warning Modal */}
+                        <Dialog open={showRepublishWarning} onOpenChange={setShowRepublishWarning}>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>⚠️ Already Published</DialogTitle>
+                                </DialogHeader>
+                                <div className="space-y-4 py-4">
+                                    <p className="text-sm text-muted-foreground">
+                                        This video has already been published to Instagram. Publishing again will create a duplicate post.
+                                    </p>
+                                    <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg">
+                                        <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                                            <strong>Previous Publications:</strong>
+                                        </p>
+                                        <ul className="text-xs text-yellow-700 dark:text-yellow-300 mt-1 space-y-1">
+                                            {project.publishedMediaIds?.filter((media: any) => media.platform === 'instagram').map((media: any, index: number) => (
+                                                <li key={index}>
+                                                    • Instagram: Media ID {media.mediaId}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                    <div className="flex justify-end space-x-2">
+                                        <Button
+                                            variant="outline"
+                                            onClick={() => setShowRepublishWarning(false)}
+                                        >
+                                            Cancel
+                                        </Button>
+                                        <Button
+                                            variant="destructive"
+                                            onClick={() => {
+                                                setShowRepublishWarning(false);
+                                                handleActualPublish();
+                                            }}
+                                        >
+                                            Publish Anyway
+                                        </Button>
+                                    </div>
+                                </div>
+                            </DialogContent>
+                        </Dialog>
                         {(project.status === 'done' || project.status === 'error') && (
                             <Tooltip>
                                 <TooltipTrigger asChild>

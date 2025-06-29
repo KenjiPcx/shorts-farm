@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 
 export const addTokens = mutation({
@@ -27,3 +27,12 @@ export const addTokens = mutation({
         }
     },
 }); 
+
+export const getUserProperties = query({
+    args: {
+        userId: v.id("users"),
+    },
+    handler: async (ctx, args) => {
+        return await ctx.db.query("userProperties").withIndex("by_userId", (q) => q.eq("userId", args.userId)).unique();
+    }
+});

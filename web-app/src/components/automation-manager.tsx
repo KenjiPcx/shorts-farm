@@ -25,6 +25,27 @@ export function AutomationManager() {
     return (
         <div className="space-y-8">
             <h1 className="text-4xl font-bold">Automation Manager</h1>
+
+            {/* Quickstart Banner */}
+            <Card className="bg-blue-50 border-blue-200">
+                <CardContent>
+                    <div className="flex items-start space-x-3">
+                        <div className="flex-shrink-0">
+                            <Clock className="h-6 w-6 text-blue-600" />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-semibold text-blue-900 mb-2">How Daily Automation Works</h3>
+                            <p className="text-blue-800 mb-3">
+                                Every day at 9:00 AM UTC, our system automatically checks your topic queue and creates one video per account.
+                                To get started, connect your Instagram account and add at least one topic to the queue below.
+                            </p>
+                            <div className="text-sm text-blue-700 bg-blue-100 p-3 rounded-lg">
+                                <strong>📅 Getting Started:</strong> Add your first topic today and your automation will be triggered tomorrow at 9:00 AM UTC.
+                            </div>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-1">
                     <Card>
@@ -256,7 +277,7 @@ function TopicQueue({ account }: { account: Account }) {
                             </Button>
                         </div>
                     ))}
-                    {(account.topicQueue?.length ?? 0) === 0 && <p className="text-center text-muted-foreground py-4">This queue is empty.</p>}
+                    {(account.topicQueue?.length ?? 0) === 0 && <p className="text-center text-muted-foreground py-4">This queue is empty. <br />To start automations, you need to provide the first topic for <br />the AI to learn what kind of content to create.</p>}
                 </div>
                 <form onSubmit={handleAddTopic} className="flex space-x-2">
                     <Input value={newTopic} onChange={e => setNewTopic(e.target.value)} placeholder="Add a new topic idea..." />

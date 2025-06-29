@@ -1,11 +1,8 @@
 "use node";
+
 import { action } from "./_generated/server";
 import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
-import {
-    ActionCtx,
-    internalAction,
-} from "./_generated/server";
 
 const GRAPH_API_URL = "https://graph.instagram.com/v23.0";
 
@@ -17,7 +14,7 @@ const buildGraphApiUrl = (path: string, params: Record<string, any>, accessToken
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export const postToInstagram = internalAction({
+export const postToInstagram = action({
     args: {
         projectId: v.id("projects"),
         accountId: v.id("accounts"),
@@ -38,7 +35,7 @@ export const postToInstagram = internalAction({
                 projectId,
                 accountId
             });
-            return;
+            throw new Error("Project, video, or account not found");
         }
 
         const instagramPlatform = account.platforms.find((p) => p.platform === 'instagram');
@@ -46,7 +43,14 @@ export const postToInstagram = internalAction({
             console.error("Instagram credentials not found for account", {
                 accountId
             });
-            return;
+            throw new Error("Instagram credentials not found for account");
+        }
+
+        if (!project.project.socialMediaCopy || !project.thumbnailUrl) {
+            console.error("Social media copy or thumbnail not found for project", {
+                projectId
+            });
+            throw new Error("Social media copy or thumbnail not found for project");
         }
 
         const { igUserId, accessToken: oauthToken, accessTokenEnvVar, expiresAt } = instagramPlatform.credentials;
@@ -75,7 +79,7 @@ export const postToInstagram = internalAction({
             console.error("Video URL not found for project", {
                 projectId
             });
-            return;
+            throw new Error("Video URL not found for project");
         }
 
         const mediaParams: any = {

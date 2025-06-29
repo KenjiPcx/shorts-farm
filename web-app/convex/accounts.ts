@@ -1,11 +1,27 @@
 import { v } from "convex/values";
-import { mutation, query, internalMutation, internalQuery } from "./_generated/server";
+import { mutation, query, internalMutation, internalQuery, internalAction } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { z } from "zod";
 import { generateObject } from "ai";
 import { model } from "./model";
-import { internal } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import dedent from "dedent";
+
+export const getAllActiveAccounts = internalQuery({
+    handler: async (ctx) => {
+        // Get accounts that have at least one platform configured
+        // And has more than 1 tokens in the token bucket
+        const accounts = await ctx.db.query("accounts").collect();
+        const platformAccounts = accounts.filter(account => account.platforms.length > 0);
+
+        const fundedUserIds = await ctx.db.query("userProperties")
+            .filter(q => q.gte(q.field("tokens"), 1))
+            .collect();
+
+        const fundedUserIdSet = new Set(fundedUserIds.map(userProperty => userProperty.userId));
+        return platformAccounts.filter(account => fundedUserIdSet.has(account.userId));
+    }
+});
 
 export const createAccount = mutation({
     args: {
@@ -91,11 +107,8 @@ export const addTopic = mutation({
         topic: v.string(),
     },
     handler: async (ctx, args) => {
-        const userId = await getAuthUserId(ctx);
-        if (!userId) throw new Error("Not authenticated");
-
         const account = await ctx.db.get(args.accountId);
-        if (!account || account.userId !== userId) throw new Error("Not authorized");
+        if (!account) throw new Error("Account not found");
 
         const newQueue = account.topicQueue ?? [];
         newQueue.push(args.topic);
@@ -170,12 +183,12 @@ const TopicSelectionSchema = z.object({
     }).describe("A critique of each of the 5 generated topics.")
 });
 
-export const internalRefillQueue = internalMutation({
+export const internalRefillQueue = internalAction({
     args: {
         accountId: v.id("accounts"),
     },
     handler: async (ctx, args) => {
-        const account = await ctx.db.get(args.accountId);
+        const account = await ctx.runQuery(internal.accounts.get, { id: args.accountId });
         if (!account) throw new Error("Account not found");
 
         const currentQueue = account.topicQueue ?? [];
@@ -229,7 +242,7 @@ export const internalRefillQueue = internalMutation({
             console.log(`Agent selected: "${bestTopic}". Reasoning: ${selectionResult.reasoning}`);
 
             currentQueue.push(bestTopic);
-            await ctx.db.patch(args.accountId, { topicQueue: currentQueue });
+            await ctx.runMutation(api.accounts.addTopic, { accountId: args.accountId, topic: bestTopic });
             console.log(`Successfully added "${bestTopic}" to the queue for ${account.displayName}.`);
         }
     }
