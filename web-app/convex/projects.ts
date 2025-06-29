@@ -5,7 +5,32 @@ import { mutation } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { vLessonPlanScene } from "./schema";
 
-export type ProjectWithScript = Doc<"projects"> & { script?: Doc<"scripts"> | null, videoUrl?: string | null, user?: string | null };
+export type ProjectWithScript = Doc<"projects"> & {
+    script?: Doc<"scripts"> | null,
+    videoUrl?: string | null,
+    user?: string | null,
+    thumbnailUrl?: string | null
+};
+
+export const createProjectForTopic = internalMutation({
+    args: {
+        topic: v.string(),
+        userId: v.id("users"),
+        castId: v.optional(v.id("casts")),
+        urls: v.optional(v.array(v.string())),
+        accountId: v.optional(v.id("accounts")),
+    },
+    handler: async (ctx, args) => {
+        return await ctx.db.insert("projects", {
+            topic: args.topic,
+            userId: args.userId,
+            castId: args.castId,
+            status: "gathering",
+            urls: args.urls,
+            accountId: args.accountId,
+        });
+    }
+});
 
 export const get = internalQuery({
     args: {
@@ -120,6 +145,21 @@ export const deleteProject = mutation({
     },
 });
 
+export const getRecentTopicsByAccountId = internalQuery({
+    args: {
+        accountId: v.id("accounts"),
+    },
+    handler: async (ctx, args) => {
+        const projects = await ctx.db
+            .query("projects")
+            .withIndex("by_accountId", (q) => q.eq("accountId", args.accountId))
+            .order("desc")
+            .take(25);
+
+        return projects.map(p => p.topic).filter((t): t is string => !!t);
+    }
+});
+
 // Get projects for the current user
 export const getMyProjects = query({
     handler: async (ctx): Promise<ProjectWithScript[]> => {
@@ -141,7 +181,8 @@ export const getMyProjects = query({
                     ? await ctx.db.get(project.videoId)
                     : null;
                 const user = project.userId ? await ctx.db.get(project.userId) : null;
-                return { ...project, script, videoUrl: video?.finalUrl ?? null, user: user?.name ?? null };
+                const thumbnail = project.thumbnailStorageId ? await ctx.storage.getUrl(project.thumbnailStorageId) : null;
+                return { ...project, script, videoUrl: video?.finalUrl ?? null, user: user?.name ?? null, thumbnailUrl: thumbnail ?? null };
             })
         );
     },
@@ -163,7 +204,8 @@ export const getAllProjects = query({
                     ? await ctx.db.get(project.videoId)
                     : null;
                 const user = project.userId ? await ctx.db.get(project.userId) : null;
-                return { ...project, script, videoUrl: video?.finalUrl ?? null, user: user?.name ?? null };
+                const thumbnail = project.thumbnailStorageId ? await ctx.storage.getUrl(project.thumbnailStorageId) : null;
+                return { ...project, script, videoUrl: video?.finalUrl ?? null, user: user?.name ?? null, thumbnailUrl: thumbnail ?? null };
             })
         );
     },
@@ -183,6 +225,8 @@ export const getProjectDetails = query({
             .query("media")
             .withIndex("by_projectId", (q) => q.eq("projectId", args.projectId))
             .collect();
+        const thumbnail = project.thumbnailStorageId ? await ctx.storage.getUrl(project.thumbnailStorageId) : null;
+        const account = project.accountId ? await ctx.db.get(project.accountId) : null;
 
         return {
             project,
@@ -190,6 +234,39 @@ export const getProjectDetails = query({
             video,
             cast,
             media,
+            thumbnailUrl: thumbnail ?? null,
+            account,
         };
+    },
+});
+
+export const getProject = internalQuery({
+    args: {
+        projectId: v.id("projects")
+    },
+    handler: async (ctx, {
+        projectId
+    }) => {
+        return await ctx.db.get(projectId);
+    },
+});
+
+export const appendProjectPublishedMediaId = mutation({
+    args: {
+        projectId: v.id("projects"),
+        platform: v.string(),
+        mediaId: v.string(),
+    },
+    handler: async (ctx, args) => {
+        const project = await ctx.db.get(args.projectId);
+        if (!project) throw new Error("Project not found");
+
+        await ctx.db.patch(args.projectId, {
+            publishedMediaIds: [...(project.publishedMediaIds || []),
+            {
+                platform: args.platform,
+                mediaId: args.mediaId
+            }]
+        });
     },
 });

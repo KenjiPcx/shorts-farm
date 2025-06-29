@@ -60,6 +60,13 @@ export const vProject = v.object({
   bucketName: v.optional(v.string()),
   statusMessage: v.optional(v.string()),
   workflowId: v.optional(v.string()),
+  accountId: v.optional(v.id("accounts")),
+  thumbnailStorageId: v.optional(v.id("_storage")),
+  socialMediaCopy: v.optional(v.string()),
+  publishedMediaIds: v.optional(v.array(v.object({
+    platform: v.string(),
+    mediaId: v.string(),
+  }))),
 })
 
 export const vAsset = v.object({
@@ -105,7 +112,8 @@ export default defineSchema({
   projects: defineTable({
     ...vProject.fields,
   }).index("by_userId", ["userId"])
-    .index("by_renderId", ["renderId"]),
+    .index("by_renderId", ["renderId"])
+    .index("by_accountId", ["accountId"]),
 
   scripts: defineTable({
     projectId: v.id("projects"),
@@ -125,4 +133,33 @@ export default defineSchema({
     projectId: v.id("projects"),
     finalUrl: v.optional(v.string()),
   }).index("by_projectId", ["projectId"]),
+
+  // Account Management
+  accounts: defineTable({
+    userId: v.id("users"),
+    displayName: v.string(), // e.g., "AWS Facts"
+    // A short description of the account's persona, content, and target audience.
+    bio: v.optional(v.string()),
+    // A user-editable creative brief for the next batch of videos.
+    creativeBrief: v.optional(v.string()),
+    // The social media platforms this account posts to (e.g., ["instagram", "tiktok"])
+    platforms: v.array(v.object({
+      platform: v.string(),
+      handle: v.string(),
+      credentials: v.optional(v.object({
+        igUserId: v.string(),
+        username: v.optional(v.string()),
+        accessToken: v.optional(v.string()),
+        expiresAt: v.optional(v.number()),
+        // Legacy fields for backward compatibility
+        accessTokenEnvVar: v.optional(v.string()),
+      }))
+    })),
+    castWeights: v.optional(v.array(v.object({
+      castId: v.id("casts"),
+      weight: v.number(),
+    }))),
+    postSchedule: v.optional(v.string()), // e.g., cron expression for posting time
+    topicQueue: v.optional(v.array(v.string())),
+  }).index("by_userId", ["userId"]),
 });

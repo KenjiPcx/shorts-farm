@@ -69,6 +69,29 @@ http.route({
                 videoId: videoId,
             });
             console.log(`Successfully ingested video for project ${project._id}`);
+
+            // If the project is from an automation account, schedule the post
+            if (project.accountId) {
+                const account = await ctx.runQuery(internal.accounts.get, { id: project.accountId });
+                if (account?.postSchedule) {
+                    try {
+                        const [hours, minutes] = account.postSchedule.split(':').map(Number);
+                        const now = new Date();
+                        const nextPostDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
+
+                        // If the time has already passed for today, schedule it for tomorrow
+                        if (nextPostDate < now) {
+                            nextPostDate.setDate(nextPostDate.getDate() + 1);
+                        }
+
+                        console.log(`Scheduling post for project ${project._id
+                            } at ${nextPostDate}`);
+                        await ctx.scheduler.runAt(nextPostDate, internal.posting.postToInstagram, { projectId: project._id, accountId: project.accountId });
+                    } catch (err) {
+                        console.error('Failed to parse time string or schedule post:', err);
+                    }
+                }
+            }
         } else if (payload.type === "error") {
             console.error(`Render failed for project ${project._id}`, payload.errors);
             const errorMessage = payload.errors[0]?.message ?? "Unknown rendering error";
@@ -80,6 +103,140 @@ http.route({
 
         return new Response("Webhook received", { status: 200 });
     })
-})
+});
+
+// Instagram OAuth callback endpoint
+http.route({
+    path: "/instagram/callback",
+    method: "GET",
+    handler: httpAction(async (ctx, request) => {
+        const url = new URL(request.url);
+        const code = url.searchParams.get('code');
+        const state = url.searchParams.get('state');
+        const error = url.searchParams.get('error');
+
+        // Create HTML response for redirect back to the actual app
+        const baseUrl = process.env.SITE_URL || 'http://localhost:5173';
+
+        if (error) {
+            const errorHtml = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Instagram Connection Failed</title>
+                    <script>
+                        setTimeout(() => {
+                            window.location.href = '${baseUrl}?instagram_error=' + encodeURIComponent('${error}');
+                        }, 1000);
+                    </script>
+                </head>
+                <body>
+                    <div style="text-align: center; padding: 50px; font-family: Arial, sans-serif;">
+                        <h2>Instagram Connection Failed</h2>
+                        <p>Error: ${error}</p>
+                        <p>Redirecting back to app...</p>
+                    </div>
+                </body>
+                </html>
+            `;
+            return new Response(errorHtml, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+            });
+        }
+
+        if (!code || !state) {
+            const errorHtml = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Instagram Connection Failed</title>
+                    <script>
+                        setTimeout(() => {
+                            window.location.href = '${baseUrl}?instagram_error=' + encodeURIComponent('Missing authorization code or account ID');
+                        }, 1000);
+                    </script>
+                </head>
+                <body>
+                    <div style="text-align: center; padding: 50px; font-family: Arial, sans-serif;">
+                        <h2>Instagram Connection Failed</h2>
+                        <p>Missing authorization code or account ID</p>
+                        <p>Redirecting back to app...</p>
+                    </div>
+                </body>
+                </html>
+            `;
+            return new Response(errorHtml, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+            });
+        }
+
+        try {
+            // Extract accountId from the prefixed state (remove 'ig_' prefix)
+            const accountId = state.startsWith('ig_') ? state.slice(3) : state;
+
+            const result = await ctx.runAction(api.instagramAuth.exchangeCodeForToken, {
+                code,
+                accountId: accountId as any,
+            });
+
+            if (result.success) {
+                const successHtml = `
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <title>Instagram Connected Successfully</title>
+                        <script>
+                            setTimeout(() => {
+                                window.location.href = '${baseUrl}?instagram_success=' + encodeURIComponent('@${result.username}');
+                            }, 2000);
+                        </script>
+                    </head>
+                    <body>
+                        <div style="text-align: center; padding: 50px; font-family: Arial, sans-serif;">
+                            <h2 style="color: green;">✅ Instagram Connected Successfully!</h2>
+                            <p>Successfully connected Instagram account @${result.username}</p>
+                            <p>Redirecting back to app...</p>
+                        </div>
+                    </body>
+                    </html>
+                `;
+                return new Response(successHtml, {
+                    status: 200,
+                    headers: { "Content-Type": "text/html" },
+                });
+            } else {
+                throw new Error('Failed to connect Instagram account');
+            }
+        } catch (err: any) {
+            console.error("Instagram callback error:", err);
+            const errorHtml = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Instagram Connection Failed</title>
+                    <script>
+                        setTimeout(() => {
+                            window.location.href = '${baseUrl}?instagram_error=' + encodeURIComponent('${err.message || 'An unexpected error occurred'}');
+                        }, 1000);
+                    </script>
+                </head>
+                <body>
+                    <div style="text-align: center; padding: 50px; font-family: Arial, sans-serif;">
+                        <h2 style="color: red;">❌ Instagram Connection Failed</h2>
+                        <p>${err.message || 'An unexpected error occurred'}</p>
+                        <p>Redirecting back to app...</p>
+                    </div>
+                </body>
+                </html>
+            `;
+            return new Response(errorHtml, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+            });
+        }
+    })
+});
 
 export default http;

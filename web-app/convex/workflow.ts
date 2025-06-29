@@ -1,15 +1,20 @@
-import { action, mutation } from "./_generated/server";
+import { mutation, internalAction } from "./_generated/server";
 import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
 import { WorkflowManager, WorkflowId } from "@convex-dev/workflow";
 import { components } from "./_generated/api";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { Doc } from "./_generated/dataModel";
+import { Doc, Id } from "./_generated/dataModel";
 
-export const workflow = new WorkflowManager(components.workflow);
+export const workflow = new WorkflowManager(components.workflow, {
+    workpoolOptions: {
+        maxParallelism: 10
+    }
+});
 
 export const videoCreationWorkflow = workflow.define({
     args: {
+        accountId: v.optional(v.id("accounts")),
         castId: v.id("casts"),
         projectId: v.id("projects"),
         urls: v.optional(v.array(v.string())),
@@ -70,6 +75,17 @@ export const videoCreationWorkflow = workflow.define({
                 projectId: args.projectId,
             });
         }
+
+        await step.runAction(api.social.generateSocials, {
+            projectId: args.projectId,
+        });
+
+        // If the project was created from an account queue, pop the topic.
+        if (args.accountId) {
+            await step.runMutation(internal.accounts.popTopic, {
+                accountId: args.accountId,
+            });
+        }
     },
 });
 
@@ -88,6 +104,7 @@ export const rerunVideoCreation = mutation({
             ctx,
             internal.workflow.videoCreationWorkflow,
             {
+                accountId: project.accountId,
                 projectId: project._id,
                 castId: project.castId!,
                 urls: project.urls,
@@ -106,6 +123,7 @@ export const rerunVideoCreation = mutation({
 export const startVideoCreation = mutation({
     args: {
         input: v.object({
+            accountId: v.optional(v.id("accounts")),
             urls: v.optional(v.array(v.string())),
             topic: v.optional(v.string()),
             doMoreResearch: v.optional(v.boolean()),
@@ -137,25 +155,26 @@ export const startVideoCreation = mutation({
             });
         }
 
-        const { urls, topic, doMoreResearch, castId } = args.input;
+        const { urls, topic, doMoreResearch, castId, accountId } = args.input;
         if (!topic && (!urls || urls.length === 0)) {
             throw new Error("Either topic or urls must be provided.");
         }
 
         const projectTopic = topic || `Video for ${urls![0]}`;
 
-        const projectId = await ctx.db.insert("projects", {
+        const projectId = await ctx.runMutation(internal.projects.createProjectForTopic, {
             topic: projectTopic,
             userId: userId,
-            status: "gathering",
             castId: castId,
             urls: urls,
+            accountId: accountId,
         });
 
         const workflowId = await workflow.start(
             ctx,
             internal.workflow.videoCreationWorkflow,
             {
+                accountId: accountId,
                 projectId,
                 urls,
                 topic,
@@ -200,6 +219,7 @@ export const rerunVideoCreationFromScratch = mutation({
             ctx,
             internal.workflow.videoCreationWorkflow,
             {
+                accountId: project.accountId,
                 projectId: project._id,
                 castId: project.castId!,
                 urls: project.urls,
@@ -241,5 +261,73 @@ export const stopWorkflow = mutation({
     handler: async (ctx, args) => {
         await workflow.cancel(ctx, args.workflowId as WorkflowId);
         await ctx.db.patch(args.projectId, { status: "error", statusMessage: "Workflow cancelled" });
+    }
+});
+
+export const runDailyVideoCreation = internalAction({
+    handler: async (ctx) => {
+        // Get all accounts that have at least one platform configured
+        const accounts = await ctx.runQuery(api.accounts.getMyAccounts);
+        const activeAccounts = accounts.filter(a => a.platforms.length > 0);
+
+        for (const account of activeAccounts) {
+            // Find the next topic in the queue
+            const topic = account.topicQueue?.[0];
+
+            if (topic) {
+                console.log(`Starting video creation for topic: "${topic}" for account ${account.displayName}`);
+                // Start the video creation workflow
+                if (!account.castWeights || account.castWeights.length === 0) {
+                    console.warn(`Account ${account.displayName} has no casts configured. Skipping video creation.`);
+                    continue; // Skip to the next account
+                }
+
+                // Weighted random selection of a cast member
+                const totalWeight = account.castWeights.reduce((sum, cast) => sum + cast.weight, 0);
+                let randomPoint = Math.random() * totalWeight;
+                let primaryCastId: Id<"casts"> | undefined;
+
+                for (const cast of account.castWeights) {
+                    if (randomPoint < cast.weight) {
+                        primaryCastId = cast.castId;
+                        break;
+                    }
+                    randomPoint -= cast.weight;
+                }
+
+                if (!primaryCastId) {
+                    // Fallback to the first cast if something goes wrong with the weighting logic
+                    primaryCastId = account.castWeights[0].castId;
+                    console.warn(`Weighted random selection failed for account ${account.displayName}. Falling back to first cast.`);
+                }
+
+                const projectId = await ctx.runMutation(internal.projects.createProjectForTopic, {
+                    topic: topic,
+                    userId: account.userId,
+                    castId: primaryCastId,
+                    accountId: account._id,
+                });
+
+                await workflow.start(
+                    ctx,
+                    internal.workflow.videoCreationWorkflow,
+                    {
+                        accountId: account._id,
+                        projectId,
+                        topic: topic,
+                        userId: account.userId,
+                        castId: primaryCastId,
+                    }
+                );
+
+                // After starting, immediately check if the queue needs refilling
+                await ctx.runMutation(internal.accounts.internalRefillQueue, { accountId: account._id });
+
+            } else {
+                console.log(`No pending topics for account ${account.displayName}. Triggering refill.`);
+                // If there are no pending topics at all, trigger a refill
+                await ctx.runMutation(internal.accounts.internalRefillQueue, { accountId: account._id });
+            }
+        }
     }
 });

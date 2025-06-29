@@ -16,6 +16,7 @@ import type * as characters from "../characters.js";
 import type * as crons from "../crons.js";
 import type * as gatherContent from "../gatherContent.js";
 import type * as http from "../http.js";
+import type * as instagramAuth from "../instagramAuth.js";
 import type * as lessonPlanner from "../lessonPlanner.js";
 import type * as lib_tigris from "../lib/tigris.js";
 import type * as media from "../media.js";
@@ -56,6 +57,7 @@ declare const fullApi: ApiFromModules<{
   crons: typeof crons;
   gatherContent: typeof gatherContent;
   http: typeof http;
+  instagramAuth: typeof instagramAuth;
   lessonPlanner: typeof lessonPlanner;
   "lib/tigris": typeof lib_tigris;
   media: typeof media;

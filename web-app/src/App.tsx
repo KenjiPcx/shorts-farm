@@ -9,7 +9,7 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { Dashboard } from "./components/dashboard";
 import { useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { BuyTokensModal } from "./components/buy-tokens-modal";
 import { Button } from "./components/ui/button";
 import { ThemeProvider } from "./components/theme-provider"
@@ -19,10 +19,48 @@ import { SignInModal } from "./components/sign-in-modal";
 
 export default function App() {
   const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
+  const [instagramStatus, setInstagramStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+
+  // Check for Instagram callback status on mount
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const success = urlParams.get('instagram_success');
+    const error = urlParams.get('instagram_error');
+
+    if (success) {
+      setInstagramStatus({ type: 'success', message: `Instagram account ${success} connected successfully!` });
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (error) {
+      setInstagramStatus({ type: 'error', message: `Instagram connection failed: ${error}` });
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
   return (
     <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <Header setIsSignInModalOpen={setIsSignInModalOpen} />
+        {instagramStatus && (
+          <div className={`${instagramStatus.type === 'success' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'} border-l-4 p-4 mx-4`}>
+            <div className="flex">
+              <div className="ml-3">
+                <p className="text-sm">
+                  {instagramStatus.message}
+                </p>
+              </div>
+              <div className="ml-auto pl-3">
+                <button
+                  onClick={() => setInstagramStatus(null)}
+                  className="text-sm underline hover:no-underline"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <Authenticated>
             <Dashboard />
@@ -31,8 +69,8 @@ export default function App() {
             <LandingPage onGetStarted={() => setIsSignInModalOpen(true)} />
           </Unauthenticated>
         </main>
+        <SignInModal isOpen={isSignInModalOpen} onClose={() => setIsSignInModalOpen(false)} />
       </div>
-      <SignInModal isOpen={isSignInModalOpen} onClose={() => setIsSignInModalOpen(false)} />
     </ThemeProvider>
   );
 }
